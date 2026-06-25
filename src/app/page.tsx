@@ -1,65 +1,239 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+import Link from "next/link";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+import Image from "next/image";
+import useAppwrite from "@/hooks/useAppwrite";
+import { getCategories, type Category } from "@/lib/appwrite";
+
+export default function HomePage() {
+
+    const { data: categoriesData } = useAppwrite<Category[], any>({
+        fn: getCategories,
+    });
+
+    const categories = categoriesData ?? [];
+
+    const getCategoryHref = (categoryName: string) => {
+    const matchedCategory = categories.find(
+        (cat) =>
+            cat.name.toLowerCase().trim() ===
+            categoryName.toLowerCase().trim()
+    );
+
+    return matchedCategory
+        ? `/shop?category=${String(matchedCategory.$id)}`
+        : "/shop";
+};
+
+    const collections = [
+        {
+            title: "Allwear",
+            image: "/images/allwear-card.png",
+            href: "/shop",
+        },
+        {
+            title: "Comrades",
+            image: "/images/comrades-card.png",
+            href: "/shop",
+        },
+        {
+            title: "Bafana Bafana",
+            image: "/images/bafana-card.png",
+            href: "/shop",
+        },
+    ];
+
+    const shopCards = [
+    {
+        title: "Allwear",
+        categoryName: "Allwear",
+        image: "/images/allwear-card.png",
+    },
+    {
+        title: "Comrades",
+        categoryName: "Comrades",
+        image: "/images/comrades-card.png",
+    },
+    {
+        title: "Bafana Bafana",
+        categoryName: "Bafana Bafana",
+        image: "/images/bafana-card.png",
+    },
+];
+
+    return (
+        <main className="min-h-screen bg-white">
+            <Navbar />
+
+            {/* HERO */}
+            <section className="relative overflow-hidden bg-zinc-950">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(111,194,118,0.35),transparent_35%)]" />
+
+                <div className="relative mx-auto grid min-h-[720px] max-w-7xl items-center gap-12 px-6 py-20 lg:grid-cols-2">
+                    <div>
+                    <Link href="/" className="text-2xl font-black tracking-tight text-zinc-950">
+                        <img src="/images/Logo.png" alt="Allwear Logo" className="h-15 w-auto" />
+                    </Link>
+
+                        <h1 className="max-w-2xl text-6xl font-black leading-[0.95] tracking-tight text-white md:text-8xl">
+                            Built for movement.
+                        </h1>
+
+                        <p className="mt-8 max-w-xl text-lg leading-8 text-zinc-300">
+                            Shop activewear made for training, travel, recovery and
+                            everyday comfort. Clean designs, easy checkout and reliable
+                            local delivery.
+                        </p>
+
+                        <div className="mt-10 flex flex-wrap gap-4">
+                            <Link
+                                href="/shop"
+                                className="rounded-full bg-[#6FC276] px-8 py-4 text-sm font-black uppercase tracking-wide text-white"
+                            >
+                                Shop Collection
+                            </Link>
+
+                            <Link
+                                href="/shop"
+                                className="rounded-full border border-white/20 px-8 py-4 text-sm font-black uppercase tracking-wide text-white"
+                            >
+                                View New Arrivals
+                            </Link>
+                        </div>
+                    </div>
+
+                  <div className="relative">
+                      <div className="aspect-[4/5] rounded-[3rem] bg-white/10 p-8 backdrop-blur">
+                          <div className="relative flex h-full items-center justify-center overflow-hidden rounded-[2rem] bg-white">
+                              <Image
+                                  src="/images/new-drop.png"
+                                  alt="Allwear Activewear New Drop"
+                                  fill
+                                  sizes="(max-width: 768px) 100vw, 50vw"
+                                  className="object-cover"
+                                  priority
+                              />
+
+                              <div className="absolute inset-0 bg-black/20" />
+
+                              <div className="absolute bottom-8 left-8 right-8 text-center">
+                                  <p className="text-md font-black uppercase tracking-[0.3em] text-[#ffffff]">
+                                      Activewear
+                                  </p>
+                                  <h2 className="mt-4 text-5xl font-black text-white">
+                                      New Drop
+                                  </h2>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+                </div>
+            </section>
+
+            {/* FEATURES */}
+            <section className="border-b border-zinc-100 bg-white">
+                <div className="mx-auto grid max-w-7xl gap-6 px-6 py-10 md:grid-cols-3">
+                    <div>
+                        <h3 className="font-black text-zinc-950">Delivery</h3>
+                        <p className="mt-2 text-sm leading-6 text-zinc-500">
+                            Flat delivery fee of R100.00 on online orders.
+                        </p>
+                    </div>
+
+                    <div>
+                        <h3 className="font-black text-zinc-950">Active Comfort</h3>
+                        <p className="mt-2 text-sm leading-6 text-zinc-500">
+                            Everyday pieces made for movement and comfort.
+                        </p>
+                    </div>
+
+                    <div>
+                        <h3 className="font-black text-zinc-950">Secure Checkout</h3>
+                        <p className="mt-2 text-sm leading-6 text-zinc-500">
+                            Add items to cart and checkout when ready.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            {/* CATEGORY BANNERS */}
+            <section className="mx-auto max-w-7xl px-6 py-20">
+                <div className="mb-10 flex items-end justify-between gap-6">
+                    <div>
+                        <p className="text-sm font-black uppercase tracking-[0.25em] text-[#6FC276]">
+                            Shop by category
+                        </p>
+                        <h2 className="mt-3 text-4xl font-black tracking-tight text-zinc-950 md:text-5xl">
+                            Find your fit.
+                        </h2>
+                    </div>
+
+                    <Link
+                        href="/shop"
+                        className="hidden rounded-full bg-zinc-950 px-6 py-3 text-sm font-black text-white md:inline-flex"
+                    >
+                        Shop All
+                    </Link>
+                </div>
+
+                  <div className="grid gap-6 md:grid-cols-3">
+                {shopCards.map((card) => (
+                    <Link
+                        href={getCategoryHref(card.categoryName)}
+                        key={card.title}
+                        className="group relative min-h-[360px] overflow-hidden rounded-[2rem] bg-zinc-100 p-8"
+                    >
+                        <Image
+                            src={card.image}
+                            alt={card.title}
+                            fill
+                            className="object-cover object-top transition duration-500 group-hover:scale-105"
+                            sizes="(max-width: 768px) 100vw, 33vw"
+                        />
+
+                        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-zinc-950/20 to-transparent" />
+
+                        <div className="relative z-10 flex h-full flex-col justify-end">
+                            <p className="mb-3 text-sm font-black uppercase tracking-[0.2em] text-[#FFFFFF]">
+                                Shop Category
+                            </p>
+
+                            <h3 className="text-3xl font-black text-white">
+                                {card.title}
+                            </h3>
+
+                            <span className="mt-5 inline-flex w-fit rounded-full bg-white px-5 py-3 text-sm font-black text-zinc-950 transition group-hover:bg-[#6FC276] group-hover:text-white">
+                                Shop Now
+                            </span>
+                        </div>
+                    </Link>
+                ))}
+                </div>
+            </section>
+
+            {/* CTA */}
+            <section className="bg-zinc-100">
+                <div className="mx-auto flex max-w-7xl flex-col items-center px-6 py-20 text-center">
+                    <p className="text-sm font-black uppercase tracking-[0.25em] text-[#6FC276]">
+                        Ready to shop?
+                    </p>
+
+                    <h2 className="mt-4 max-w-3xl text-4xl font-black tracking-tight text-zinc-950 md:text-6xl">
+                        Build your activewear wardrobe today.
+                    </h2>
+
+                    <Link
+                        href="/shop"
+                        className="mt-8 rounded-full bg-[#6FC276] px-8 py-4 text-sm font-black uppercase tracking-wide text-white"
+                    >
+                        Go to Shop
+                    </Link>
+                </div>
+            </section>
+
+            <Footer />
+        </main>
+    );
 }
