@@ -3,32 +3,78 @@
 import { useMemo, useState } from "react";
 
 type ProductImageCarouselProps = {
+    productName: string;
+
     frontImage?: string;
     backImage?: string;
-    productName: string;
+
+    modelFrontImage?: string;
+    modelSideImage?: string;
+    modelBackImage?: string;
+    modelCloseupImage?: string;
 };
 
 export default function ProductImageCarousel({
+    productName,
     frontImage,
     backImage,
-    productName,
+    modelFrontImage,
+    modelSideImage,
+    modelBackImage,
+    modelCloseupImage,
 }: ProductImageCarouselProps) {
     const images = useMemo(() => {
         return [
+            modelFrontImage
+                ? {
+                      label: "Model Front",
+                      url: modelFrontImage,
+                  }
+                : null,
+
+            modelSideImage
+                ? {
+                      label: "Model Side",
+                      url: modelSideImage,
+                  }
+                : null,
+
+            modelBackImage
+                ? {
+                      label: "Model Back",
+                      url: modelBackImage,
+                  }
+                : null,
+
+            modelCloseupImage
+                ? {
+                      label: "Close-up",
+                      url: modelCloseupImage,
+                  }
+                : null,
+
             frontImage
                 ? {
-                      label: "Front",
+                      label: "Product Front",
                       url: frontImage,
                   }
                 : null,
+
             backImage
                 ? {
-                      label: "Back",
+                      label: "Product Back",
                       url: backImage,
                   }
                 : null,
         ].filter(Boolean) as { label: string; url: string }[];
-    }, [frontImage, backImage]);
+    }, [
+        modelFrontImage,
+        modelSideImage,
+        modelBackImage,
+        modelCloseupImage,
+        frontImage,
+        backImage,
+    ]);
 
     const [activeIndex, setActiveIndex] = useState(0);
 
@@ -58,16 +104,17 @@ export default function ProductImageCarousel({
 
     return (
         <div className="space-y-5">
-            <div className="relative flex min-h-[520px] items-center justify-center overflow-hidden rounded-[2rem] bg-zinc-50 p-8">
+            <div className="relative flex min-h-[620px] items-center justify-center overflow-hidden rounded-[2rem] bg-zinc-50 p-6">
                 <img
                     src={activeImage.url}
                     alt={`${productName} ${activeImage.label}`}
-                    className="max-h-[560px] w-full object-contain transition duration-300"
+                    className="max-h-[680px] w-full object-contain transition duration-300"
                 />
 
                 {images.length > 1 && (
                     <>
                         <button
+                            type="button"
                             onClick={goPrevious}
                             className="absolute left-5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white text-xl font-black text-zinc-950 shadow-md transition hover:scale-105"
                             aria-label="Previous image"
@@ -76,6 +123,7 @@ export default function ProductImageCarousel({
                         </button>
 
                         <button
+                            type="button"
                             onClick={goNext}
                             className="absolute right-5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white text-xl font-black text-zinc-950 shadow-md transition hover:scale-105"
                             aria-label="Next image"
@@ -86,20 +134,21 @@ export default function ProductImageCarousel({
                 )}
 
                 <div className="absolute left-5 top-5 rounded-full bg-white px-4 py-2 text-xs font-black uppercase tracking-wide text-zinc-950 shadow-sm">
-                    {activeImage.label} View
+                    {activeImage.label}
                 </div>
             </div>
 
             {images.length > 1 && (
-                <div className="flex gap-4">
+                <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
                     {images.map((image, index) => {
                         const active = index === activeIndex;
 
                         return (
                             <button
-                                key={image.label}
+                                type="button"
+                                key={`${image.label}-${image.url}`}
                                 onClick={() => setActiveIndex(index)}
-                                className={`flex h-24 w-24 items-center justify-center overflow-hidden rounded-2xl border p-2 transition ${
+                                className={`flex h-24 items-center justify-center overflow-hidden rounded-2xl border p-2 transition ${
                                     active
                                         ? "border-[#6FC276] bg-[#6FC276]/10"
                                         : "border-zinc-100 bg-zinc-50 hover:border-zinc-300"

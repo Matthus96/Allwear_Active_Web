@@ -22,6 +22,11 @@ export type Product = Models.Document & {
     description?: string;
     backImage?: string;
     categories?: string | string[];
+
+    modelFrontImage?: string;
+    modelSideImage?: string;
+    modelBackImage?: string;
+    modelCloseupImage?: string;
 };
 
 export const appwriteConfig = {

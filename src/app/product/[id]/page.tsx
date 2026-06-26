@@ -109,9 +109,13 @@ export default function ProductPage() {
 
                 <div className="grid gap-10 lg:grid-cols-2">
                     <ProductImageCarousel
+                        productName={product.name}
                         frontImage={product.image_url}
                         backImage={product.backImage}
-                        productName={product.name}
+                        modelFrontImage={product.modelFrontImage}
+                        modelSideImage={product.modelSideImage}
+                        modelBackImage={product.modelBackImage}
+                        modelCloseupImage={product.modelCloseupImage}
                     />
 
                     <div className="flex flex-col justify-center">

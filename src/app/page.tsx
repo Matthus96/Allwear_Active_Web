@@ -119,11 +119,8 @@ export default function HomePage() {
                               <div className="absolute inset-0 bg-black/20" />
 
                               <div className="absolute bottom-8 left-8 right-8 text-center">
-                                  <p className="text-md font-black uppercase tracking-[0.3em] text-[#ffffff]">
-                                      Activewear
-                                  </p>
-                                  <h2 className="mt-4 text-5xl font-black text-white">
-                                      New Drop
+                                  <h2 className="mt-4 text-5xl font-black text-[#ffffff]">
+                                      New Drop🔥🔥
                                   </h2>
                               </div>
                           </div>
