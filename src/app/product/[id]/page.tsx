@@ -119,8 +119,12 @@ export default function ProductPage() {
                     />
 
                     <div className="flex flex-col justify-center">
-                        <Link href="/" className="text-2xl font-black tracking-tight text-zinc-950">
-                            <img src="/images/Logo.png" alt="Allwear Logo" className="h-15 w-auto" />
+                        <Link href="/" className="inline-flex items-center">
+                            <img
+                                src="/images/Logo.png"
+                                alt="Allwear Logo"
+                                className="h-auto w-[180px] max-w-[65vw] object-contain sm:w-[240px] lg:w-[320px]"
+                            />
                         </Link>
 
                         <h1 className="mt-3 text-4xl font-black leading-tight text-zinc-950 md:text-6xl">

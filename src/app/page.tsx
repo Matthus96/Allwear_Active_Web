@@ -73,9 +73,13 @@ export default function HomePage() {
 
                 <div className="relative mx-auto grid min-h-[720px] max-w-7xl items-center gap-12 px-6 py-20 lg:grid-cols-2">
                     <div>
-                    <Link href="/" className="text-2xl font-black tracking-tight text-zinc-950">
-                        <img src="/images/Logo.png" alt="Allwear Logo" className="h-15 w-auto" />
-                    </Link>
+                        <Link href="/" className="inline-flex items-center">
+                            <img
+                                src="/images/Logo.png"
+                                alt="Allwear Logo"
+                                className="h-auto w-[180px] max-w-[65vw] object-contain sm:w-[240px] lg:w-[320px]"
+                            />
+                        </Link>
 
                         <h1 className="max-w-2xl text-6xl font-black leading-[0.95] tracking-tight text-white md:text-8xl">
                             Built for movement.
