@@ -80,7 +80,7 @@ export default function ProductImageCarousel({
 
     if (!images.length) {
         return (
-            <div className="flex min-h-[520px] items-center justify-center rounded-[2rem] bg-zinc-50">
+            <div className="flex h-[420px] items-center justify-center rounded-[2rem] bg-zinc-50 sm:h-[520px]">
                 <p className="text-sm font-bold text-zinc-400">
                     No product image available
                 </p>
@@ -103,12 +103,12 @@ export default function ProductImageCarousel({
     };
 
     return (
-        <div className="space-y-5">
-            <div className="relative flex min-h-[620px] items-center justify-center overflow-hidden rounded-[2rem] bg-zinc-50 p-6">
+        <div className="w-full min-w-0 space-y-4 sm:space-y-5">
+            <div className="relative h-[430px] w-full overflow-hidden rounded-[2rem] bg-zinc-50 sm:h-[560px] lg:h-[620px]">
                 <img
                     src={activeImage.url}
                     alt={`${productName} ${activeImage.label}`}
-                    className="max-h-[680px] w-full object-contain transition duration-300"
+                    className="h-full w-full object-cover object-top transition duration-300"
                 />
 
                 {images.length > 1 && (
@@ -116,7 +116,7 @@ export default function ProductImageCarousel({
                         <button
                             type="button"
                             onClick={goPrevious}
-                            className="absolute left-5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white text-xl font-black text-zinc-950 shadow-md transition hover:scale-105"
+                            className="absolute left-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-xl font-black text-zinc-950 shadow-md transition hover:scale-105 sm:left-5 sm:h-11 sm:w-11"
                             aria-label="Previous image"
                         >
                             ‹
@@ -125,7 +125,7 @@ export default function ProductImageCarousel({
                         <button
                             type="button"
                             onClick={goNext}
-                            className="absolute right-5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white text-xl font-black text-zinc-950 shadow-md transition hover:scale-105"
+                            className="absolute right-3 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-xl font-black text-zinc-950 shadow-md transition hover:scale-105 sm:right-5 sm:h-11 sm:w-11"
                             aria-label="Next image"
                         >
                             ›
@@ -133,13 +133,13 @@ export default function ProductImageCarousel({
                     </>
                 )}
 
-                <div className="absolute left-5 top-5 rounded-full bg-white px-4 py-2 text-xs font-black uppercase tracking-wide text-zinc-950 shadow-sm">
+                <div className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-zinc-950 shadow-sm sm:left-5 sm:top-5 sm:px-4 sm:text-xs">
                     {activeImage.label}
                 </div>
             </div>
 
             {images.length > 1 && (
-                <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+                <div className="flex w-full snap-x gap-2 overflow-x-auto pb-2 scrollbar-hide">
                     {images.map((image, index) => {
                         const active = index === activeIndex;
 
@@ -148,7 +148,7 @@ export default function ProductImageCarousel({
                                 type="button"
                                 key={`${image.label}-${image.url}`}
                                 onClick={() => setActiveIndex(index)}
-                                className={`flex h-24 items-center justify-center overflow-hidden rounded-2xl border p-2 transition ${
+                                className={`flex h-24 w-20 shrink-0 snap-start items-center justify-center overflow-hidden rounded-xl border transition sm:h-28 sm:w-24 sm:rounded-2xl ${
                                     active
                                         ? "border-[#6FC276] bg-[#6FC276]/10"
                                         : "border-zinc-100 bg-zinc-50 hover:border-zinc-300"
@@ -157,7 +157,7 @@ export default function ProductImageCarousel({
                                 <img
                                     src={image.url}
                                     alt={`${productName} ${image.label} thumbnail`}
-                                    className="h-full w-full object-contain"
+                                    className="h-full w-full object-cover object-top"
                                 />
                             </button>
                         );

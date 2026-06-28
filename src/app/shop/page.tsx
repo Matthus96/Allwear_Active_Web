@@ -48,7 +48,6 @@ export default function ShopPage() {
             category,
             query,
         });
-        // Do not add refetch here. It can cause repeated fetching.
     }, [category, query]);
 
     useEffect(() => {
@@ -111,21 +110,20 @@ export default function ShopPage() {
     const productCount = products?.length ?? 0;
 
     return (
-        <main className="min-h-screen bg-white">
+        <main className="min-h-screen overflow-x-hidden bg-white">
             <Navbar />
 
-            {/* SHOP HERO */}
-            <section className="bg-zinc-950 px-6 py-20 text-white">
-                <div className="mx-auto max-w-7xl">
-                    <p className="text-sm font-black uppercase tracking-[0.25em] text-[#6FC276]">
+            <section className="bg-zinc-950 px-4 py-14 text-white sm:px-6 sm:py-16 lg:px-8 lg:py-20">
+                <div className="mx-auto w-full max-w-7xl">
+                    <p className="text-xs font-black uppercase tracking-[0.22em] text-[#6FC276] sm:text-sm">
                         Collection
                     </p>
 
-                    <h1 className="mt-4 text-5xl font-black tracking-tight md:text-7xl">
+                    <h1 className="mt-4 max-w-4xl text-4xl font-black leading-tight tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
                         Shop Allwear Active
                     </h1>
 
-                    <p className="mt-5 max-w-2xl text-base leading-8 text-zinc-300 md:text-lg">
+                    <p className="mt-5 max-w-2xl text-sm leading-7 text-zinc-300 sm:text-base md:text-lg md:leading-8">
                         Browse our latest activewear, lifestyle apparel and
                         performance-ready pieces. Add your favourites to cart
                         and get delivery for a flat R100.00.
@@ -133,16 +131,14 @@ export default function ShopPage() {
                 </div>
             </section>
 
-            {/* SHOP BODY */}
-            <section className="mx-auto max-w-7xl px-6 py-12">
-                {/* TOP TOOLBAR */}
-                <div className="mb-10 flex flex-col gap-5 border-b border-zinc-100 pb-8 lg:flex-row lg:items-end lg:justify-between">
-                    <div>
-                        <p className="text-sm font-black uppercase tracking-[0.2em] text-[#6FC276]">
+            <section className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
+                <div className="mb-8 flex flex-col gap-5 border-b border-zinc-100 pb-8 lg:mb-10 lg:flex-row lg:items-end lg:justify-between">
+                    <div className="min-w-0">
+                        <p className="text-xs font-black uppercase tracking-[0.2em] text-[#6FC276] sm:text-sm">
                             {selectedCategoryName}
                         </p>
 
-                        <h2 className="mt-2 text-3xl font-black tracking-tight text-zinc-950 md:text-4xl">
+                        <h2 className="mt-2 text-2xl font-black tracking-tight text-zinc-950 sm:text-3xl md:text-4xl">
                             {loading
                                 ? "Loading products..."
                                 : `${productCount} product${
@@ -153,7 +149,7 @@ export default function ShopPage() {
 
                     <form
                         onSubmit={handleSearchSubmit}
-                        className="flex w-full max-w-xl overflow-hidden rounded-full border border-zinc-200 bg-white shadow-sm"
+                        className="flex w-full flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm sm:max-w-xl sm:flex-row sm:rounded-full"
                     >
                         <input
                             value={searchValue}
@@ -164,17 +160,16 @@ export default function ShopPage() {
 
                         <button
                             type="submit"
-                            className="bg-zinc-950 px-6 py-4 text-sm font-black text-white transition hover:bg-zinc-800"
+                            className="shrink-0 bg-zinc-950 px-6 py-4 text-sm font-black text-white transition hover:bg-zinc-800"
                         >
                             Search
                         </button>
                     </form>
                 </div>
 
-                <div className="grid gap-10 lg:grid-cols-[260px_1fr]">
-                    {/* SIDEBAR */}
-                    <aside className="h-fit rounded-3xl border border-zinc-100 bg-zinc-50 p-5 lg:sticky lg:top-28">
-                        <div className="mb-5 flex items-center justify-between">
+                <div className="grid gap-8 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-10">
+                    <aside className="min-w-0 rounded-3xl border border-zinc-100 bg-zinc-50 p-4 sm:p-5 lg:sticky lg:top-28 lg:h-fit">
+                        <div className="mb-5 flex items-center justify-between gap-4">
                             <h3 className="text-lg font-black text-zinc-950">
                                 Categories
                             </h3>
@@ -182,17 +177,17 @@ export default function ShopPage() {
                             {(activeCategory || query) && (
                                 <button
                                     onClick={handleClearFilters}
-                                    className="text-xs font-black uppercase tracking-wide text-[#6FC276]"
+                                    className="shrink-0 text-xs font-black uppercase tracking-wide text-[#6FC276]"
                                 >
                                     Clear
                                 </button>
                             )}
                         </div>
 
-                        <div className="flex gap-3 overflow-x-auto lg:flex-col lg:overflow-visible">
+                        <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0 lg:pb-0">
                             <button
                                 onClick={() => handleCategoryClick()}
-                                className={`whitespace-nowrap rounded-full px-5 py-3 text-left text-sm font-black transition lg:w-full ${
+                                className={`shrink-0 whitespace-nowrap rounded-full px-5 py-3 text-left text-sm font-black transition lg:w-full ${
                                     !activeCategory
                                         ? "bg-[#6FC276] text-white"
                                         : "bg-white text-zinc-800 hover:bg-zinc-100"
@@ -212,7 +207,7 @@ export default function ShopPage() {
                                         onClick={() =>
                                             handleCategoryClick(String(cat.$id))
                                         }
-                                        className={`whitespace-nowrap rounded-full px-5 py-3 text-left text-sm font-black transition lg:w-full ${
+                                        className={`shrink-0 whitespace-nowrap rounded-full px-5 py-3 text-left text-sm font-black transition lg:w-full ${
                                             isActive
                                                 ? "bg-[#6FC276] text-white"
                                                 : "bg-white text-zinc-800 hover:bg-zinc-100"
@@ -239,8 +234,7 @@ export default function ShopPage() {
                         </div>
                     </aside>
 
-                    {/* PRODUCT AREA */}
-                    <div>
+                    <div className="min-w-0">
                         {query && (
                             <div className="mb-6 rounded-2xl bg-zinc-50 px-5 py-4 text-sm text-zinc-600">
                                 Showing results for{" "}
@@ -251,14 +245,15 @@ export default function ShopPage() {
                         )}
 
                         {loading ? (
-                            <div className="grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-4">
+                            <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
                                 {Array.from({ length: 8 }).map((_, index) => (
                                     <div
                                         key={index}
                                         className="overflow-hidden rounded-3xl border border-zinc-100 bg-white"
                                     >
-                                        <div className="h-56 animate-pulse bg-zinc-100" />
-                                        <div className="space-y-3 p-5">
+                                        <div className="aspect-[4/5] animate-pulse bg-zinc-100" />
+
+                                        <div className="space-y-3 p-3 sm:p-5">
                                             <div className="h-4 w-3/4 animate-pulse rounded bg-zinc-100" />
                                             <div className="h-4 w-1/2 animate-pulse rounded bg-zinc-100" />
                                             <div className="h-11 animate-pulse rounded-full bg-zinc-100" />
@@ -267,7 +262,7 @@ export default function ShopPage() {
                                 ))}
                             </div>
                         ) : productCount > 0 ? (
-                            <div className="grid grid-cols-2 gap-5 md:grid-cols-3 xl:grid-cols-4">
+                            <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
                                 {products.map((item) => (
                                     <ProductCard
                                         key={item.$id}
@@ -276,12 +271,12 @@ export default function ShopPage() {
                                 ))}
                             </div>
                         ) : (
-                            <div className="rounded-[2rem] border border-zinc-100 bg-zinc-50 px-6 py-20 text-center">
-                                <p className="text-sm font-black uppercase tracking-[0.2em] text-[#6FC276]">
+                            <div className="rounded-[2rem] border border-zinc-100 bg-zinc-50 px-5 py-16 text-center sm:px-6 sm:py-20">
+                                <p className="text-xs font-black uppercase tracking-[0.2em] text-[#6FC276] sm:text-sm">
                                     No Results
                                 </p>
 
-                                <h3 className="mt-3 text-3xl font-black text-zinc-950">
+                                <h3 className="mt-3 text-2xl font-black text-zinc-950 sm:text-3xl">
                                     No products found
                                 </h3>
 

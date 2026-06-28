@@ -16,9 +16,9 @@ export default function ProductCard({ item }: { item: Product }) {
     const addItem = useCartStore((state) => state.addItem);
 
     return (
-        <div className="overflow-hidden rounded-3xl border border-black/5 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-md">
-            <Link href={`/product/${item.$id}`}>
-                <div className="flex h-56 items-center justify-center bg-zinc-50 p-6">
+        <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-3xl border border-black/5 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+            <Link href={`/product/${item.$id}`} className="block">
+                <div className="flex aspect-[4/5] w-full items-center justify-center bg-zinc-50 p-3 sm:p-5">
                     <img
                         src={item.image_url}
                         alt={item.name}
@@ -27,14 +27,20 @@ export default function ProductCard({ item }: { item: Product }) {
                 </div>
             </Link>
 
-            <div className="p-5">
+            <div className="flex flex-1 flex-col p-3 sm:p-5">
+                <img
+                    src="/images/Logo.png"
+                    alt="Allwear Active"
+                    className="mb-2 h-auto w-[82px] object-contain sm:w-[105px]"
+                />
+
                 <Link href={`/product/${item.$id}`}>
-                    <h3 className="line-clamp-1 text-base font-bold text-zinc-950">
+                    <h3 className="line-clamp-2 min-h-[34px] text-sm font-black leading-tight text-zinc-950 sm:min-h-[40px] sm:text-base">
                         {item.name}
                     </h3>
                 </Link>
 
-                <p className="mt-1 text-sm text-zinc-500">
+                <p className="mt-2 text-xs font-black text-zinc-500 sm:text-sm">
                     From R{Number(item.price || 0).toFixed(2)}
                 </p>
 
@@ -52,11 +58,11 @@ export default function ProductCard({ item }: { item: Product }) {
                             },
                         })
                     }
-                    className="mt-4 w-full rounded-full bg-[#6FC276] px-4 py-3 text-sm font-black text-white transition hover:brightness-95"
+                    className="mt-4 w-full rounded-full bg-[#6FC276] px-3 py-3 text-xs font-black text-white transition hover:brightness-95 sm:px-4 sm:text-sm"
                 >
                     Add to Cart +
                 </button>
             </div>
-        </div>
+        </article>
     );
 }
