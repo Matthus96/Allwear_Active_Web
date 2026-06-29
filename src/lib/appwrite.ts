@@ -29,6 +29,15 @@ export type Product = Models.Document & {
     modelCloseupImage?: string;
 };
 
+export type ProductInventory = Models.Document & {
+    productId: string;
+    productName?: string;
+    range?: string;
+    size: string;
+    quantity: number;
+    available?: boolean;
+};
+
 export const appwriteConfig = {
     endpoint: process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!,
     projectId: process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!,
@@ -43,6 +52,7 @@ export const appwriteConfig = {
     menuCustomizationsCollectionId: "menu_customizations",
     ordersCollectionId: "orders",
     addressesCollectionId: "addresses",
+    productInventoryCollectionId: "product-inventory",
 
     distributorCollectionId: "distributor",
 
@@ -50,7 +60,7 @@ export const appwriteConfig = {
     defaultDistributorName: "Allwear HQ",
 
     deleteAccountFunctionId:
-        process.env.NEXT_PUBLIC_DELETE_ACCOUNT_FUNCTION_ID || "",
+    process.env.NEXT_PUBLIC_DELETE_ACCOUNT_FUNCTION_ID || "",
 };
 
 export const client = new Client()
@@ -66,12 +76,7 @@ export const teams = new Teams(client);
 const avatars = new Avatars(client);
 
 export const getImageUrl = (fileId: string) => {
-    return String(
-        storage.getFileView(
-            appwriteConfig.bucketId,
-            fileId
-        )
-    );
+    return String(storage.getFileView(appwriteConfig.bucketId, fileId));
 };
 
 const normalizeEmail = (email: string) => {
@@ -83,13 +88,19 @@ const getInitialsAvatar = (name?: string) => {
     return String(avatars.getInitials(safeName));
 };
 
-export const getMenuById = async ({ id }: { id: string }) => {
+export const getMenuById = async ({
+    id,
+}: {
+    id: string;
+}): Promise<Product> => {
     try {
-        return await databases.getDocument(
+        const res = await databases.getDocument(
             appwriteConfig.databaseId,
             appwriteConfig.menuCollectionId,
             id
         );
+
+        return res as unknown as Product;
     } catch (e: any) {
         console.log("GET MENU BY ID ERROR:", e);
         throw new Error(e?.message || "Could not fetch menu item.");
@@ -138,6 +149,23 @@ export const getCategories = async (): Promise<Category[]> => {
     } catch (e: any) {
         console.log("GET CATEGORIES ERROR:", e);
         throw new Error(e?.message || "Could not fetch categories.");
+    }
+};
+
+export const getProductInventory = async (
+    productId: string
+): Promise<ProductInventory[]> => {
+    try {
+        const res = await databases.listDocuments(
+            appwriteConfig.databaseId,
+            appwriteConfig.productInventoryCollectionId,
+            [Query.equal("productId", productId)]
+        );
+
+        return res.documents as unknown as ProductInventory[];
+    } catch (e: any) {
+        console.log("GET PRODUCT INVENTORY ERROR:", e);
+        throw new Error(e?.message || "Could not fetch product inventory.");
     }
 };
 
@@ -213,13 +241,39 @@ export const getCurrentUser = async () => {
     try {
         const currentAccount = await account.get();
 
+        if (!currentAccount?.$id) {
+            return null;
+        }
+
         const res = await databases.listDocuments(
             appwriteConfig.databaseId,
             appwriteConfig.userCollectionId,
             [Query.equal("accountId", currentAccount.$id)]
         );
 
-        return res.documents[0] ?? null;
+        if (!res.documents.length) {
+            return await databases.createDocument(
+                appwriteConfig.databaseId,
+                appwriteConfig.userCollectionId,
+                ID.unique(),
+                {
+                    accountId: currentAccount.$id,
+                    email: normalizeEmail(currentAccount.email),
+                    name: currentAccount.name || "User",
+                    avatar: getInitialsAvatar(currentAccount.name),
+                    deleted: false,
+                }
+            );
+        }
+
+        const user = res.documents[0];
+
+        if (user.deleted === true) {
+            await logout();
+            return null;
+        }
+
+        return user;
     } catch {
         return null;
     }
@@ -276,6 +330,148 @@ export const logout = async () => {
         await account.deleteSession("current");
     } catch (e) {
         console.log("LOGOUT ERROR:", e);
+    }
+};
+
+export type CreateOrderParams = {
+    reference: string;
+    email: string;
+    items: string;
+    total: number;
+
+    accountId?: string;
+    userId?: string;
+
+    status?: string;
+    trackingStatus?: string;
+
+    paidAt?: string;
+    gateway_response?: string;
+
+    distributorId?: string;
+    distributorName?: string;
+};
+
+export const createOrder = async (order: CreateOrderParams) => {
+    try {
+        return await databases.createDocument(
+            appwriteConfig.databaseId,
+            appwriteConfig.ordersCollectionId,
+            ID.unique(),
+            {
+                reference: order.reference,
+                email: order.email,
+                items: order.items,
+                total: order.total,
+
+                accountId: order.accountId ?? null,
+                userId: order.userId ?? null,
+
+                status: order.status ?? "order_placed",
+                trackingStatus: order.trackingStatus ?? "order_placed",
+
+                paidAt: order.paidAt ?? new Date().toISOString(),
+
+                gateway_response: order.gateway_response ?? null,
+
+                distributorId:
+                    order.distributorId ??
+                    appwriteConfig.defaultDistributorId,
+
+                distributorName:
+                    order.distributorName ??
+                    appwriteConfig.defaultDistributorName,
+            }
+        );
+    } catch (e: any) {
+        console.log("CREATE ORDER ERROR:", e);
+        throw new Error(e?.message || "Could not create order.");
+    }
+};
+
+export const getUserOrders = async ({
+    accountId,
+    userId,
+    email,
+}: {
+    accountId?: string;
+    userId?: string;
+    email?: string;
+}) => {
+    try {
+        const results: any[] = [];
+
+        const addUnique = (docs: any[]) => {
+            docs.forEach((doc) => {
+                const exists = results.some((item) => item.$id === doc.$id);
+
+                if (!exists) {
+                    results.push(doc);
+                }
+            });
+        };
+
+        if (accountId) {
+            const byAccountId = await databases.listDocuments(
+                appwriteConfig.databaseId,
+                appwriteConfig.ordersCollectionId,
+                [
+                    Query.equal("accountId", accountId),
+                    Query.orderDesc("$createdAt"),
+                ]
+            );
+
+            addUnique(byAccountId.documents);
+        }
+
+        if (accountId) {
+            const byUserIdUsingAccountId = await databases.listDocuments(
+                appwriteConfig.databaseId,
+                appwriteConfig.ordersCollectionId,
+                [
+                    Query.equal("userId", accountId),
+                    Query.orderDesc("$createdAt"),
+                ]
+            );
+
+            addUnique(byUserIdUsingAccountId.documents);
+        }
+
+        if (userId && userId !== accountId) {
+            const byUserId = await databases.listDocuments(
+                appwriteConfig.databaseId,
+                appwriteConfig.ordersCollectionId,
+                [
+                    Query.equal("userId", userId),
+                    Query.orderDesc("$createdAt"),
+                ]
+            );
+
+            addUnique(byUserId.documents);
+        }
+
+        if (email) {
+            const byEmail = await databases.listDocuments(
+                appwriteConfig.databaseId,
+                appwriteConfig.ordersCollectionId,
+                [
+                    Query.equal("email", email),
+                    Query.orderDesc("$createdAt"),
+                ]
+            );
+
+            addUnique(byEmail.documents);
+        }
+
+        return results.sort((a, b) => {
+            const dateA = new Date(a.$createdAt || a.paidAt || 0).getTime();
+            const dateB = new Date(b.$createdAt || b.paidAt || 0).getTime();
+
+            return dateB - dateA;
+        });
+    } catch (e: any) {
+        console.log("GET USER ORDERS ERROR:", e);
+        throw new Error(e?.message || "Could not fetch orders.");
     }
 };
 

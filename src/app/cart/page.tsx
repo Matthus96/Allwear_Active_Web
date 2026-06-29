@@ -1,8 +1,13 @@
 "use client";
 
+"use client";
+
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import Link from "next/link";
+
 import { useCartStore } from "@/store/cart.store";
+import { useAuthStore } from "@/store/auth.store";
 
 const INIT_URL = "https://6a0d6117002dd75f9543.nyc.appwrite.run";
 const VERIFY_URL = "https://6a0d7486003a70759065.nyc.appwrite.run";
@@ -18,6 +23,10 @@ export default function CartPage() {
     const increaseQty = useCartStore((s) => s.increaseQty);
     const decreaseQty = useCartStore((s) => s.decreaseQty);
     const removeItem = useCartStore((s) => s.removeItem);
+    const router = useRouter();
+    const user = useAuthStore((state) => state.user);
+    const authLoading = useAuthStore((state) => state.loading);
+    const hydrated = useAuthStore((state) => state.hydrated);
 
     const [loading, setLoading] = useState(false);
     const lockRef = useRef(false);
@@ -27,68 +36,62 @@ export default function CartPage() {
     const finalTotal = subtotal + deliveryFee;
 
     const handlePayNow = async () => {
-        if (loading || lockRef.current) return;
+    if (loading || lockRef.current) return;
 
-        lockRef.current = true;
-        setLoading(true);
+    lockRef.current = true;
+    setLoading(true);
 
-        try {
-            if (!items.length) {
-                alert("Cart is empty");
-                return;
-            }
-
-            /**
-             * For now, this assumes the user email/userId is handled
-             * by your Appwrite Function or later auth state.
-             *
-             * Once we add web auth, we will pass the real user email and ID.
-             */
-            const initRes = await fetch(INIT_URL, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    amount: finalTotal,
-                    items,
-                    subtotal,
-                    deliveryFee,
-                }),
-            });
-
-            const initData = await initRes.json();
-
-            if (!initRes.ok || !initData?.authorization_url) {
-                throw new Error(
-                    initData?.message || "Payment init failed"
-                );
-            }
-
-            const reference = initData.reference;
-
-            window.location.href = initData.authorization_url;
-
-            /**
-             * Important:
-             * On web, verification is better handled on a /success page
-             * after Paystack redirects back to your website.
-             *
-             * So this page starts payment.
-             * The success page should verify the reference.
-             */
-            useCartStore.getState().setPendingPayment({
-                reference,
-                items,
-                totalPrice: finalTotal,
-            });
-        } catch (e: any) {
-            alert(e?.message || "Something went wrong.");
-        } finally {
-            setLoading(false);
-            lockRef.current = false;
+    try {
+        if (!items.length) {
+            alert("Cart is empty");
+            return;
         }
-    };
+
+        if (!hydrated || authLoading) {
+            alert("Checking your account. Please try again in a moment.");
+            return;
+        }
+
+        if (!user?.email || !user?.$id) {
+            router.push("/login?redirect=/cart");
+            return;
+        }
+
+        const initRes = await fetch("/api/paystack/init", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                email: user.email,
+                userId: user.$id,
+                amount: finalTotal,
+                items,
+                subtotal,
+                deliveryFee,
+            }),
+        });
+
+        const initData = await initRes.json();
+
+        if (!initRes.ok || !initData?.authorization_url) {
+            throw new Error(initData?.message || "Payment init failed");
+        }
+
+        useCartStore.getState().setPendingPayment({
+            reference: initData.reference,
+            items,
+            totalPrice: finalTotal,
+        });
+
+        window.location.href = initData.authorization_url;
+    } catch (error: any) {
+        alert(error?.message || "Something went wrong.");
+    } finally {
+        setLoading(false);
+        lockRef.current = false;
+    }
+};
 
     return (
         <main className="min-h-screen bg-white">

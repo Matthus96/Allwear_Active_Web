@@ -3,9 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import CartButton from "@/components/CartButton";
+import { useAuthStore } from "@/store/auth.store";
 
 export default function Navbar() {
     const [menuOpen, setMenuOpen] = useState(false);
+    const user = useAuthStore((state) => state.user);
+    const logout = useAuthStore((state) => state.logout);
 
     return (
         <header className="sticky top-0 z-50 border-b border-zinc-100 bg-white/90 backdrop-blur-md">
@@ -14,7 +17,7 @@ export default function Navbar() {
                     <img
                         src="/images/Logo.png"
                         alt="Allwear Logo"
-                        className="h-auto w-[120px] object-contain sm:w-[160px] md:w-[190px]"
+                        className="h-auto w-[100px] object-contain sm:w-[140px] md:w-[190px]"
                     />
                 </Link>
 
@@ -34,6 +37,25 @@ export default function Navbar() {
                     <Link href="/cart" className="hover:text-[#6FC276]">
                         Cart
                     </Link>
+                    {user ? (
+                        <>
+                            <Link href="/orders" className="hover:text-[#6FC276]">
+                                Orders
+                            </Link>
+
+                            <button
+                                type="button"
+                                onClick={logout}
+                                className="font-bold hover:text-[#6FC276]"
+                            >
+                                Logout
+                            </button>
+                        </>
+                    ) : (
+                        <Link href="/login" className="hover:text-[#6FC276]">
+                            Login
+                        </Link>
+                    )}
                 </nav>
 
                 <div className="flex shrink-0 items-center gap-2 sm:gap-3">
@@ -57,13 +79,13 @@ export default function Navbar() {
                 </div>
             </div>
 
-            {menuOpen && (
-                <nav className="border-t border-zinc-100 bg-white px-4 py-4 lg:hidden">
-                    <div className="mx-auto flex max-w-7xl flex-col gap-3 text-sm font-black text-zinc-800">
+            {menuOpen ? (
+                <div className="absolute left-0 top-full z-50 w-full border-t border-zinc-100 bg-white px-4 py-4 shadow-xl md:hidden">
+                    <div className="space-y-2">
                         <Link
                             href="/"
                             onClick={() => setMenuOpen(false)}
-                            className="rounded-2xl px-4 py-3 hover:bg-zinc-50 hover:text-[#6FC276]"
+                            className="block rounded-2xl px-4 py-3 text-sm font-black text-[#6FC276] hover:bg-zinc-50"
                         >
                             Home
                         </Link>
@@ -71,23 +93,23 @@ export default function Navbar() {
                         <Link
                             href="/shop"
                             onClick={() => setMenuOpen(false)}
-                            className="rounded-2xl px-4 py-3 hover:bg-zinc-50 hover:text-[#6FC276]"
+                            className="block rounded-2xl px-4 py-3 text-sm font-black text-zinc-950 hover:bg-zinc-50"
                         >
                             Shop
                         </Link>
 
                         <Link
-                            href="/shop"
+                            href="/shop?category=New%20Arrivals"
                             onClick={() => setMenuOpen(false)}
-                            className="rounded-2xl px-4 py-3 hover:bg-zinc-50 hover:text-[#6FC276]"
+                            className="block rounded-2xl px-4 py-3 text-sm font-black text-zinc-950 hover:bg-zinc-50"
                         >
                             New Arrivals
                         </Link>
 
                         <Link
-                            href="/shop"
+                            href="/shop?category=Activewear"
                             onClick={() => setMenuOpen(false)}
-                            className="rounded-2xl px-4 py-3 hover:bg-zinc-50 hover:text-[#6FC276]"
+                            className="block rounded-2xl px-4 py-3 text-sm font-black text-zinc-950 hover:bg-zinc-50"
                         >
                             Activewear
                         </Link>
@@ -95,13 +117,44 @@ export default function Navbar() {
                         <Link
                             href="/cart"
                             onClick={() => setMenuOpen(false)}
-                            className="rounded-2xl px-4 py-3 hover:bg-zinc-50 hover:text-[#6FC276]"
+                            className="block rounded-2xl px-4 py-3 text-sm font-black text-zinc-950 hover:bg-zinc-50"
                         >
                             Cart
                         </Link>
+
+                        {user ? (
+                            <>
+                                <Link
+                                    href="/orders"
+                                    onClick={() => setMenuOpen(false)}
+                                    className="block rounded-2xl px-4 py-3 text-sm font-black text-zinc-950 hover:bg-zinc-50"
+                                >
+                                    Orders
+                                </Link>
+
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setMenuOpen(false);
+                                        logout();
+                                    }}
+                                    className="block w-full rounded-2xl px-4 py-3 text-left text-sm font-black text-red-600 hover:bg-red-50"
+                                >
+                                    Logout
+                                </button>
+                            </>
+                        ) : (
+                            <Link
+                                href="/login"
+                                onClick={() => setMenuOpen(false)}
+                                className="block rounded-2xl px-4 py-3 text-sm font-black text-zinc-950 hover:bg-zinc-50"
+                            >
+                                Login
+                            </Link>
+                        )}
                     </div>
-                </nav>
-            )}
+                </div>
+            ) : null}
         </header>
     );
 }

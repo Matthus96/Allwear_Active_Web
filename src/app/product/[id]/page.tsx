@@ -1,15 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 
 import CartButton from "@/components/CartButton";
-import { getMenuById, type Product } from "@/lib/appwrite";
-import { useCartStore } from "@/store/cart.store";
+import MeasurementSheet from "@/components/MeasurementSheet";
 import ProductImageCarousel from "@/components/ProductImageCarousel";
 
-const SIZES = ["S", "M", "L", "XL", "2XL"];
+import {
+    getMenuById,
+    getProductInventory,
+    type Product,
+    type ProductInventory,
+} from "@/lib/appwrite";
+
+import { useCartStore } from "@/store/cart.store";
+
+const SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"];
 
 export default function ProductPage() {
     const params = useParams<{ id: string }>();
@@ -18,22 +26,31 @@ export default function ProductPage() {
     const addItem = useCartStore((state) => state.addItem);
 
     const [product, setProduct] = useState<Product | null>(null);
-    const [selectedSize, setSelectedSize] = useState("M");
+    const [inventory, setInventory] = useState<ProductInventory[]>([]);
+    const [selectedSize, setSelectedSize] = useState("");
+    const [measurementOpen, setMeasurementOpen] = useState(false);
+
     const [loading, setLoading] = useState(true);
+    const [inventoryLoading, setInventoryLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchProduct = async () => {
             try {
                 setLoading(true);
+                setInventoryLoading(true);
                 setError(null);
 
-                const data = await getMenuById({ id: productId });
-                setProduct(data as unknown as Product);
+                const productData = await getMenuById({ id: productId });
+                setProduct(productData as Product);
+
+                const inventoryData = await getProductInventory(productId);
+                setInventory(inventoryData);
             } catch (e: any) {
                 setError(e?.message || "Could not load product.");
             } finally {
                 setLoading(false);
+                setInventoryLoading(false);
             }
         };
 
@@ -42,11 +59,62 @@ export default function ProductPage() {
         }
     }, [productId]);
 
+    const getSizeInventory = (size: string) => {
+        return inventory.find(
+            (item) =>
+                String(item.size || "")
+                    .trim()
+                    .toUpperCase() === size.toUpperCase()
+        );
+    };
+
+    const isSizeAvailable = (size: string) => {
+        const sizeInventory = getSizeInventory(size);
+
+        if (!sizeInventory) return false;
+
+        const quantity = Number(sizeInventory.quantity || 0);
+
+        if (sizeInventory.available === false) {
+            return false;
+        }
+
+        return quantity > 0;
+    };
+
+    const availableSizes = useMemo(() => {
+        return SIZES.filter((size) => isSizeAvailable(size));
+    }, [inventory]);
+
+    useEffect(() => {
+        if (!selectedSize && availableSizes.length > 0) {
+            setSelectedSize(availableSizes[0]);
+        }
+
+        if (selectedSize && !isSizeAvailable(selectedSize)) {
+            setSelectedSize(availableSizes[0] || "");
+        }
+    }, [availableSizes, selectedSize]);
+
+    const selectedSizeAvailable = selectedSize
+        ? isSizeAvailable(selectedSize)
+        : false;
+
     const handleAddToCart = () => {
         if (!product) return;
 
+        if (!selectedSize) {
+            alert("Please select a size.");
+            return;
+        }
+
+        if (!isSizeAvailable(selectedSize)) {
+            alert("This size is currently sold out.");
+            return;
+        }
+
         addItem({
-            id: product.$id,
+            id: `${product.$id}-${selectedSize}`,
             productId: product.$id,
             size: selectedSize,
             quantity: 1,
@@ -63,9 +131,7 @@ export default function ProductPage() {
     if (loading) {
         return (
             <main className="flex min-h-screen items-center justify-center bg-white">
-                <p className="font-bold text-zinc-500">
-                    Loading product...
-                </p>
+                <p className="font-bold text-zinc-500">Loading product...</p>
             </main>
         );
     }
@@ -147,35 +213,84 @@ export default function ProductPage() {
                         )}
 
                         <div className="mt-8">
-                            <p className="mb-3 text-sm font-black text-zinc-950">
-                                Select Size
-                            </p>
+                            <div className="mb-3 flex items-center justify-between gap-4">
+                                <p className="text-sm font-black text-zinc-950">
+                                    Select Size
+                                </p>
+
+                                {inventoryLoading ? (
+                                    <p className="text-xs font-bold text-zinc-400">
+                                        Checking stock...
+                                    </p>
+                                ) : null}
+                            </div>
 
                             <div className="flex flex-wrap gap-3">
-                                {SIZES.map((size) => (
-                                    <button
-                                        key={size}
-                                        onClick={() =>
-                                            setSelectedSize(size)
-                                        }
-                                        className={`h-12 min-w-12 rounded-full px-5 text-sm font-black ${
-                                            selectedSize === size
-                                                ? "bg-[#6FC276] text-white"
-                                                : "bg-zinc-100 text-zinc-950"
-                                        }`}
-                                    >
-                                        {size}
-                                    </button>
-                                ))}
+                                {SIZES.map((size) => {
+                                    const active = selectedSize === size;
+                                    const available = isSizeAvailable(size);
+                                    const sizeInventory =
+                                        getSizeInventory(size);
+                                    const quantity = Number(
+                                        sizeInventory?.quantity || 0
+                                    );
+
+                                    return (
+                                        <button
+                                            key={size}
+                                            type="button"
+                                            disabled={!available}
+                                            onClick={() => {
+                                                if (!available) return;
+
+                                                setSelectedSize(size);
+                                                setMeasurementOpen(true);
+                                            }}
+                                            className={`min-h-14 min-w-16 rounded-2xl border px-4 py-2 text-sm font-black transition ${
+                                                active
+                                                    ? "border-[#6FC276] bg-[#6FC276] text-white"
+                                                    : available
+                                                    ? "border-zinc-200 bg-white text-zinc-950 hover:border-[#6FC276]"
+                                                    : "cursor-not-allowed border-zinc-100 bg-zinc-100 text-zinc-400 line-through"
+                                            }`}
+                                        >
+                                            <span>{size}</span>
+
+                                            {available ? (
+                                                <span className="mt-1 block text-[10px] font-bold opacity-70">
+                                                    {quantity} left
+                                                </span>
+                                            ) : (
+                                                <span className="mt-1 block text-[10px] font-bold no-underline">
+                                                    Sold out
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
                             </div>
+
+                            {!inventoryLoading && availableSizes.length === 0 ? (
+                                <p className="mt-3 text-sm font-bold text-red-600">
+                                    This product is currently sold out.
+                                </p>
+                            ) : null}
                         </div>
 
                         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                             <button
+                                type="button"
+                                disabled={!selectedSizeAvailable}
                                 onClick={handleAddToCart}
-                                className="rounded-full bg-[#6FC276] px-8 py-4 font-black text-white"
+                                className={`rounded-full px-8 py-4 font-black text-white transition ${
+                                    selectedSizeAvailable
+                                        ? "bg-[#6FC276] hover:bg-zinc-950"
+                                        : "cursor-not-allowed bg-zinc-300"
+                                }`}
                             >
-                                Add to Cart +
+                                {selectedSizeAvailable
+                                    ? "Add to Cart +"
+                                    : "Select available size"}
                             </button>
 
                             <Link
@@ -188,6 +303,12 @@ export default function ProductPage() {
                     </div>
                 </div>
             </section>
+
+            <MeasurementSheet
+                open={measurementOpen}
+                size={selectedSize}
+                onClose={() => setMeasurementOpen(false)}
+            />
         </main>
     );
 }

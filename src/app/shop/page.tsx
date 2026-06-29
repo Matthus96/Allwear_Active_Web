@@ -1,6 +1,12 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import {
+    FormEvent,
+    Suspense,
+    useEffect,
+    useMemo,
+    useState,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import ProductCard from "@/components/ProductCard";
@@ -16,7 +22,7 @@ import {
     type Product,
 } from "@/lib/appwrite";
 
-export default function ShopPage() {
+function ShopContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -25,16 +31,20 @@ export default function ShopPage() {
 
     const [searchValue, setSearchValue] = useState(query);
 
+    const menuParams = useMemo(
+        () => ({
+            category,
+            query,
+        }),
+        [category, query]
+    );
+
     const {
         data: productsData,
         loading,
-        refetch,
     } = useAppwrite<Product[], any>({
         fn: getMenu,
-        params: {
-            category,
-            query,
-        },
+        params: menuParams,
     });
 
     const products = productsData ?? [];
@@ -42,13 +52,6 @@ export default function ShopPage() {
     const { data: categories = [] } = useAppwrite<Category[], any>({
         fn: getCategories,
     });
-
-    useEffect(() => {
-        refetch({
-            category,
-            query,
-        });
-    }, [category, query]);
 
     useEffect(() => {
         setSearchValue(query);
@@ -107,7 +110,7 @@ export default function ShopPage() {
         router.push("/shop");
     };
 
-    const productCount = products?.length ?? 0;
+    const productCount = products.length;
 
     return (
         <main className="min-h-screen overflow-x-hidden bg-white">
@@ -139,7 +142,7 @@ export default function ShopPage() {
                         </p>
 
                         <h2 className="mt-2 text-2xl font-black tracking-tight text-zinc-950 sm:text-3xl md:text-4xl">
-                            {loading
+                            {loading && products.length === 0
                                 ? "Loading products..."
                                 : `${productCount} product${
                                       productCount === 1 ? "" : "s"
@@ -176,6 +179,7 @@ export default function ShopPage() {
 
                             {(activeCategory || query) && (
                                 <button
+                                    type="button"
                                     onClick={handleClearFilters}
                                     className="shrink-0 text-xs font-black uppercase tracking-wide text-[#6FC276]"
                                 >
@@ -186,6 +190,7 @@ export default function ShopPage() {
 
                         <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0 lg:pb-0">
                             <button
+                                type="button"
                                 onClick={() => handleCategoryClick()}
                                 className={`shrink-0 whitespace-nowrap rounded-full px-5 py-3 text-left text-sm font-black transition lg:w-full ${
                                     !activeCategory
@@ -198,12 +203,12 @@ export default function ShopPage() {
 
                             {(categories ?? []).map((cat) => {
                                 const isActive =
-                                    String(cat.$id) ===
-                                    String(activeCategory);
+                                    String(cat.$id) === String(activeCategory);
 
                                 return (
                                     <button
                                         key={cat.$id}
+                                        type="button"
                                         onClick={() =>
                                             handleCategoryClick(String(cat.$id))
                                         }
@@ -244,7 +249,7 @@ export default function ShopPage() {
                             </div>
                         )}
 
-                        {loading ? (
+                        {loading && products.length === 0 ? (
                             <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
                                 {Array.from({ length: 8 }).map((_, index) => (
                                     <div
@@ -287,6 +292,7 @@ export default function ShopPage() {
                                 </p>
 
                                 <button
+                                    type="button"
                                     onClick={handleClearFilters}
                                     className="mt-6 rounded-full bg-zinc-950 px-7 py-4 text-sm font-black text-white"
                                 >
@@ -300,5 +306,19 @@ export default function ShopPage() {
 
             <Footer />
         </main>
+    );
+}
+
+export default function ShopPage() {
+    return (
+        <Suspense
+            fallback={
+                <main className="flex min-h-screen items-center justify-center bg-white">
+                    <p className="font-bold text-zinc-500">Loading shop...</p>
+                </main>
+            }
+        >
+            <ShopContent />
+        </Suspense>
     );
 }

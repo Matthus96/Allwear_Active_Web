@@ -47,7 +47,7 @@ export default function Footer() {
             </div>
 
             <div className="border-t border-white/10 px-4 py-5 text-center text-xs text-zinc-500">
-                © {new Date().getFullYear()} Allwear Active. All rights
+            Anomalie Devs © {new Date().getFullYear()} Allwear Active. All rights
                 reserved.
             </div>
         </footer>

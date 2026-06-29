@@ -1,19 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+
 import { useCartStore } from "@/store/cart.store";
+import { createOrder } from "@/lib/appwrite";
+import { useAuthStore } from "@/store/auth.store";
 
-const VERIFY_URL = "https://6a0d7486003a70759065.nyc.appwrite.run";
+const VERIFY_URL = "/api/paystack/verify";
+const DELIVERY_FEE = 100;
 
-export default function SuccessPage() {
+function SuccessContent() {
     const searchParams = useSearchParams();
+    const hasVerifiedRef = useRef(false);
 
     const clearCart = useCartStore((s) => s.clearCart);
     const addOrder = useCartStore((s) => s.addOrder);
     const pendingPayment = useCartStore((s) => s.pendingPayment);
     const clearPendingPayment = useCartStore((s) => s.clearPendingPayment);
+
+    const user = useAuthStore((state) => state.user);
+    const authHydrated = useAuthStore((state) => state.hydrated);
 
     const [status, setStatus] = useState<
         "checking" | "success" | "failed"
@@ -24,6 +32,14 @@ export default function SuccessPage() {
     useEffect(() => {
         const verifyPayment = async () => {
             try {
+                if (hasVerifiedRef.current) return;
+
+                if (!authHydrated) {
+                    return;
+                }
+
+                hasVerifiedRef.current = true;
+
                 const reference =
                     searchParams.get("reference") ||
                     searchParams.get("trxref") ||
@@ -35,11 +51,44 @@ export default function SuccessPage() {
                     return;
                 }
 
-                const verifyRes = await fetch(
-                    `${VERIFY_URL}?reference=${reference}`
-                );
+                const items = pendingPayment?.items ?? [];
+                const total = pendingPayment?.totalPrice ?? 0;
 
-                const verifyData = await verifyRes.json();
+                if (!items.length || total <= 0) {
+                    setStatus("failed");
+                    setMessage(
+                        "Payment was verified, but your order details were not found. Please contact Allwear with your payment reference."
+                    );
+                    console.warn("ORDER NOT SAVED: Missing pendingPayment.", {
+                        reference,
+                        pendingPayment,
+                    });
+                    return;
+                }
+
+                const verifyUrl = `${VERIFY_URL}?reference=${encodeURIComponent(
+                    reference
+                )}`;
+
+                const verifyRes = await fetch(verifyUrl);
+                const verifyText = await verifyRes.text();
+
+                let verifyData: any = {};
+
+                try {
+                    verifyData = verifyText ? JSON.parse(verifyText) : {};
+                } catch {
+                    throw new Error(
+                        "Verification route did not return valid JSON."
+                    );
+                }
+
+                if (!verifyRes.ok) {
+                    throw new Error(
+                        verifyData?.message ||
+                            `Verification failed with status ${verifyRes.status}`
+                    );
+                }
 
                 const success =
                     verifyData?.success === true ||
@@ -52,19 +101,61 @@ export default function SuccessPage() {
                     return;
                 }
 
-                const items = pendingPayment?.items ?? [];
-                const total = pendingPayment?.totalPrice ?? 0;
-
                 const quantity = items.reduce(
                     (sum, item) => sum + item.quantity,
                     0
                 );
 
+                const orderUserId = user?.accountId ?? user?.$id;
+                const orderEmail = user?.email;
+
+                if (!orderUserId || !orderEmail) {
+                    setStatus("failed");
+                    setMessage(
+                        "Payment was confirmed, but we could not find your logged-in account to save the order."
+                    );
+
+                    console.warn("ORDER NOT SAVED: No logged-in user found.", {
+                        user,
+                        authHydrated,
+                        reference,
+                    });
+
+                    return;
+                }
+
+                await createOrder({
+                    reference,
+                    email: orderEmail,
+                    accountId: orderUserId,
+                    userId: orderUserId,
+
+                    items: JSON.stringify(items),
+                    total,
+
+                    status: "order_placed",
+                    trackingStatus: "order_placed",
+
+                    paidAt: new Date().toISOString(),
+
+                    gateway_response: JSON.stringify({
+                        provider: "paystack",
+                        reference,
+                        status: verifyData?.data?.status ?? verifyData?.status,
+                        amount: verifyData?.data?.amount ?? verifyData?.amount,
+                        currency:
+                            verifyData?.data?.currency ?? verifyData?.currency,
+                    }),
+
+                    distributorId: "6a3502a1001eae91ffd9",
+                    distributorName: "Allwear HQ",
+                });
+
                 addOrder({
                     id: reference,
                     items,
-                    subtotal: Math.max(total - 100, 0),
-                    deliveryFee: items.length > 0 ? 100 : 0,
+                    subtotal: Math.max(total - DELIVERY_FEE, 0),
+                    deliveryFee: items.length > 0 ? DELIVERY_FEE : 0,
                     total,
                     date: new Date().toISOString(),
                     quantity,
@@ -76,6 +167,8 @@ export default function SuccessPage() {
                 setStatus("success");
                 setMessage("Payment confirmed. Your order has been placed.");
             } catch (error: any) {
+                console.log("SUCCESS PAGE ERROR:", error);
+
                 setStatus("failed");
                 setMessage(
                     error?.message ||
@@ -86,6 +179,8 @@ export default function SuccessPage() {
 
         verifyPayment();
     }, [
+        authHydrated,
+        user,
         searchParams,
         pendingPayment,
         addOrder,
@@ -131,13 +226,29 @@ export default function SuccessPage() {
                     </Link>
 
                     <Link
-                        href="/cart"
+                        href="/orders"
                         className="rounded-full bg-white px-6 py-3 font-black text-zinc-950"
                     >
-                        View Cart
+                        View Orders
                     </Link>
                 </div>
             </div>
         </main>
+    );
+}
+
+export default function SuccessPage() {
+    return (
+        <Suspense
+            fallback={
+                <main className="flex min-h-screen items-center justify-center bg-white">
+                    <p className="font-bold text-zinc-500">
+                        Verifying payment...
+                    </p>
+                </main>
+            }
+        >
+            <SuccessContent />
+        </Suspense>
     );
 }
