@@ -30,48 +30,47 @@ function ShopContent() {
     const query = searchParams.get("query") || "";
 
     const [searchValue, setSearchValue] = useState(query);
-
-const [products, setProducts] = useState<Product[]>([]);
-const [loading, setLoading] = useState(true);
-
-useEffect(() => {
-    let cancelled = false;
-
-    const loadProducts = async () => {
-        try {
-            setLoading(true);
-
-            const data = await getMenu({
-                category,
-                query,
-            });
-
-            if (!cancelled) {
-                setProducts(data);
-            }
-        } catch (error) {
-            console.log("SHOP PRODUCTS ERROR:", error);
-
-            if (!cancelled) {
-                setProducts([]);
-            }
-        } finally {
-            if (!cancelled) {
-                setLoading(false);
-            }
-        }
-    };
-
-    loadProducts();
-
-    return () => {
-        cancelled = true;
-    };
-}, [category, query]);
+    const [products, setProducts] = useState<Product[]>([]);
+    const [loading, setLoading] = useState(true);
 
     const { data: categories = [] } = useAppwrite<Category[], any>({
         fn: getCategories,
     });
+
+    useEffect(() => {
+        let cancelled = false;
+
+        const loadProducts = async () => {
+            try {
+                setLoading(true);
+
+                const data = await getMenu({
+                    category,
+                    query,
+                });
+
+                if (!cancelled) {
+                    setProducts(data);
+                }
+            } catch (error) {
+                console.log("SHOP PRODUCTS ERROR:", error);
+
+                if (!cancelled) {
+                    setProducts([]);
+                }
+            } finally {
+                if (!cancelled) {
+                    setLoading(false);
+                }
+            }
+        };
+
+        loadProducts();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [category, query]);
 
     useEffect(() => {
         setSearchValue(query);
@@ -109,6 +108,7 @@ useEffect(() => {
         router.push(`/shop${params.toString() ? `?${params}` : ""}`, {
             scroll: false,
         });
+    };
 
     const handleCategoryClick = (categoryId?: string) => {
         updateShopRoute({
@@ -128,9 +128,10 @@ useEffect(() => {
 
     const handleClearFilters = () => {
         setSearchValue("");
+
         router.push("/shop", {
-        scroll: false,
-    });
+            scroll: false,
+        });
     };
 
     const productCount = products.length;
