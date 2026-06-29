@@ -333,6 +333,15 @@ export const logout = async () => {
     }
 };
 
+export type OrderTrackingStatus =
+    | "order_placed"
+    | "confirmed"
+    | "preparing"
+    | "out_for_delivery"
+    | "delivered"
+    | "cancelled"
+    | "payment_failed";
+
 export type CreateOrderParams = {
     reference: string;
     email: string;
@@ -472,6 +481,84 @@ export const getUserOrders = async ({
     } catch (e: any) {
         console.log("GET USER ORDERS ERROR:", e);
         throw new Error(e?.message || "Could not fetch orders.");
+    }
+};
+
+export const getDistributorOrders = async (
+    distributorId = appwriteConfig.defaultDistributorId
+) => {
+    try {
+        const res = await databases.listDocuments(
+            appwriteConfig.databaseId,
+            appwriteConfig.ordersCollectionId,
+            [
+                Query.equal("distributorId", distributorId),
+                Query.orderDesc("$createdAt"),
+            ]
+        );
+
+        return res.documents;
+    } catch (e: any) {
+        console.log("GET DISTRIBUTOR ORDERS ERROR:", e);
+        throw new Error(e?.message || "Could not fetch distributor orders.");
+    }
+};
+
+const getTrackingTimestampField = (trackingStatus: OrderTrackingStatus) => {
+    switch (trackingStatus) {
+        case "confirmed":
+            return "confirmedAt";
+
+        case "preparing":
+            return "preparingAt";
+
+        case "out_for_delivery":
+            return "outForDeliveryAt";
+
+        case "delivered":
+            return "deliveredAt";
+
+        case "cancelled":
+            return "cancelledAt";
+
+        default:
+            return null;
+    }
+};
+
+export const updateOrderTrackingStatus = async ({
+    orderId,
+    trackingStatus,
+}: {
+    orderId: string;
+    trackingStatus: OrderTrackingStatus;
+}) => {
+    try {
+        const timestampField = getTrackingTimestampField(trackingStatus);
+
+        const payload: Record<string, any> = {
+            trackingStatus,
+            status:
+                trackingStatus === "cancelled"
+                    ? "cancelled"
+                    : trackingStatus === "payment_failed"
+                    ? "payment_failed"
+                    : "order_placed",
+        };
+
+        if (timestampField) {
+            payload[timestampField] = new Date().toISOString();
+        }
+
+        return await databases.updateDocument(
+            appwriteConfig.databaseId,
+            appwriteConfig.ordersCollectionId,
+            orderId,
+            payload
+        );
+    } catch (e: any) {
+        console.log("UPDATE ORDER TRACKING ERROR:", e);
+        throw new Error(e?.message || "Could not update order status.");
     }
 };
 

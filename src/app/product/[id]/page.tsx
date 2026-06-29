@@ -8,8 +8,21 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import MeasurementSheet from "@/components/MeasurementSheet";
 import ProductImageCarousel from "@/components/ProductImageCarousel";
+import ProductCard from "@/components/ProductCard";
 
 import {
+    getRecentlyViewedProducts,
+    saveRecentlyViewedProduct,
+} from "@/lib/recentlyViewed";
+
+import {
+    isProductInWishlist,
+    toggleWishlistProduct,
+} from "@/lib/wishlist";
+
+
+import {
+    getMenu,
     getMenuById,
     getProductInventory,
     type Product,
@@ -20,6 +33,16 @@ import { useCartStore } from "@/store/cart.store";
 
 const SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"];
 
+const normalizeCategories = (categories?: string | string[]) => {
+    if (!categories) return [];
+
+    if (Array.isArray(categories)) {
+        return categories.map((category) => String(category));
+    }
+
+    return [String(categories)];
+};
+
 export default function ProductPage() {
     const params = useParams<{ id: string }>();
     const productId = params.id;
@@ -28,8 +51,15 @@ export default function ProductPage() {
 
     const [product, setProduct] = useState<Product | null>(null);
     const [inventory, setInventory] = useState<ProductInventory[]>([]);
+
+    const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
+    const [recentlyViewedProducts, setRecentlyViewedProducts] = useState<Product[]>(
+    []
+    );
+
     const [selectedSize, setSelectedSize] = useState("");
     const [measurementOpen, setMeasurementOpen] = useState(false);
+    const [isWishlisted, setIsWishlisted] = useState(false);
 
     const [loading, setLoading] = useState(true);
     const [inventoryLoading, setInventoryLoading] = useState(false);
@@ -42,11 +72,48 @@ export default function ProductPage() {
                 setInventoryLoading(true);
                 setError(null);
 
-                const productData = await getMenuById({ id: productId });
-                setProduct(productData as Product);
+            const productData = await getMenuById({ id: productId });
+            setProduct(productData as Product);
 
-                const inventoryData = await getProductInventory(productId);
-                setInventory(inventoryData);
+            setIsWishlisted(isProductInWishlist(productData.$id));
+
+            saveRecentlyViewedProduct(productData as Product);
+
+            const recentlyViewed = getRecentlyViewedProducts().filter(
+                (item) => item.$id !== productData.$id
+            );
+
+            setRecentlyViewedProducts(recentlyViewed.slice(0, 4));
+
+            const inventoryData = await getProductInventory(productId);
+            setInventory(inventoryData);
+
+            const allProducts = await getMenu({});
+
+            const currentCategories = normalizeCategories(productData.categories);
+
+            const scoredProducts = allProducts
+                .filter((item) => item.$id !== productData.$id)
+                .map((item) => {
+                    const itemCategories = normalizeCategories(item.categories);
+
+                    const matchingCategoryCount = itemCategories.filter((category) =>
+                        currentCategories.includes(category)
+                    ).length;
+
+                    return {
+                        product: item,
+                        score: matchingCategoryCount,
+                    };
+                })
+                .sort((a, b) => b.score - a.score);
+
+            const recommendedProducts = scoredProducts
+                .map((item) => item.product)
+                .slice(0, 4);
+
+            setSimilarProducts(recommendedProducts);
+
             } catch (e: any) {
                 setError(e?.message || "Could not load product.");
             } finally {
@@ -334,6 +401,19 @@ export default function ProductPage() {
                         ) : null}
                     </div>
 
+                    <button
+                        type="button"
+                        onClick={() => {
+                            if (!product) return;
+
+                            const nextState = toggleWishlistProduct(product);
+                            setIsWishlisted(nextState);
+                        }}
+                        className="mt-8 w-full rounded-full border border-zinc-200 bg-white px-6 py-4 text-sm font-black text-zinc-950 transition hover:bg-zinc-100"
+                    >
+                        {isWishlisted ? "♥ Saved to Wishlist" : "♡ Add to Wishlist"}
+                    </button>
+
                     <div className="mt-8 grid w-full gap-3 sm:grid-cols-2">
                         <button
                             type="button"
@@ -370,12 +450,70 @@ export default function ProductPage() {
                     </div>
                 </div>
             </section>
+            
+            {similarProducts.length > 0 ? (
+                <section className="mx-auto w-full max-w-7xl px-4 pb-12 sm:px-6 lg:pb-16">
+                    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                            <p className="text-xs font-black uppercase tracking-[0.22em] text-[#6FC276] sm:text-sm">
+                                Similar Products
+                            </p>
+
+                            <h2 className="mt-2 text-3xl font-black tracking-tight text-zinc-950 md:text-5xl">
+                                You may also like
+                            </h2>
+                        </div>
+
+                        <Link
+                            href="/shop"
+                            className="w-fit rounded-full bg-zinc-950 px-6 py-3 text-sm font-black text-white transition hover:bg-[#6FC276]"
+                        >
+                            View All Products
+                        </Link>
+                    </div>
+
+                    <div className="grid min-w-0 grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
+                        {similarProducts.map((item) => (
+                            <ProductCard key={item.$id} item={item} />
+                        ))}
+                    </div>
+                </section>
+            ) : null}
 
             <MeasurementSheet
                 open={measurementOpen}
                 size={selectedSize}
                 onClose={() => setMeasurementOpen(false)}
             />
+
+            {recentlyViewedProducts.length > 0 ? (
+                <section className="mx-auto w-full max-w-7xl px-4 pb-12 sm:px-6 lg:pb-16">
+                    <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                            <p className="text-xs font-black uppercase tracking-[0.22em] text-[#6FC276] sm:text-sm">
+                                Recently Viewed
+                            </p>
+
+                            <h2 className="mt-2 text-3xl font-black tracking-tight text-zinc-950 md:text-5xl">
+                                Pick up where you left off
+                            </h2>
+                        </div>
+
+                        <Link
+                            href="/shop"
+                            className="w-fit rounded-full bg-zinc-950 px-6 py-3 text-sm font-black text-white transition hover:bg-[#6FC276]"
+                        >
+                            Back to Shop
+                        </Link>
+                    </div>
+
+                    <div className="grid min-w-0 grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 lg:grid-cols-4">
+                        {recentlyViewedProducts.map((item) => (
+                            <ProductCard key={item.$id} item={item} />
+                        ))}
+                    </div>
+                </section>
+            ) : null}
 
             <Footer />
         </main>

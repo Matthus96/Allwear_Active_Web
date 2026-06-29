@@ -302,14 +302,12 @@ export default function CartPage() {
                                 </div>
                             </div>
 
-                            <button
-                                type="button"
-                                onClick={handlePayNow}
-                                disabled={loading}
-                                className="mt-6 w-full rounded-full bg-[#6FC276] px-6 py-4 font-black text-white transition hover:bg-zinc-950 disabled:cursor-not-allowed disabled:opacity-60"
+                            <Link
+                                href="/checkout"
+                                className="mt-6 flex w-full items-center justify-center rounded-full bg-[#6FC276] px-6 py-4 font-black text-white transition hover:bg-zinc-950"
                             >
-                                {loading ? "Processing..." : "Pay Now"}
-                            </button>
+                                Continue to Delivery
+                            </Link>
 
                             <button
                                 type="button"

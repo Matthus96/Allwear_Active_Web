@@ -3,7 +3,8 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request) {
     try {
         const secretKey = process.env.PAYSTACK_SECRET_KEY;
-        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+        const siteUrl =
+            process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
         if (!secretKey) {
             return NextResponse.json(
@@ -15,10 +16,12 @@ export async function POST(request: Request) {
         const body = await request.json();
 
         const email = body.email || "customer@allwear.co.za";
+        const userId = body.userId || "";
         const amount = Number(body.amount || 0);
         const items = body.items || [];
         const subtotal = Number(body.subtotal || 0);
         const deliveryFee = Number(body.deliveryFee || 0);
+        const deliveryDetails = body.deliveryDetails || null;
 
         if (!amount || amount <= 0) {
             return NextResponse.json(
@@ -27,25 +30,30 @@ export async function POST(request: Request) {
             );
         }
 
-        const paystackRes = await fetch("https://api.paystack.co/transaction/initialize", {
-            method: "POST",
-            headers: {
-                Authorization: `Bearer ${secretKey}`,
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                email,
-                amount: Math.round(amount * 100),
-                currency: "ZAR",
-                callback_url: `${siteUrl}/success`,
-                metadata: {
-                    source: "allwear-active-web",
-                    subtotal,
-                    deliveryFee,
-                    items,
+        const paystackRes = await fetch(
+            "https://api.paystack.co/transaction/initialize",
+            {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${secretKey}`,
+                    "Content-Type": "application/json",
                 },
-            }),
-        });
+                body: JSON.stringify({
+                    email,
+                    amount: Math.round(amount * 100),
+                    currency: "ZAR",
+                    callback_url: `${siteUrl}/success`,
+                    metadata: {
+                        source: "allwear-active-web",
+                        userId,
+                        subtotal,
+                        deliveryFee,
+                        deliveryDetails,
+                        items,
+                    },
+                }),
+            }
+        );
 
         const data = await paystackRes.json();
 
@@ -53,7 +61,8 @@ export async function POST(request: Request) {
             return NextResponse.json(
                 {
                     success: false,
-                    message: data?.message || "Paystack initialization failed.",
+                    message:
+                        data?.message || "Paystack initialization failed.",
                     data,
                 },
                 { status: paystackRes.status || 500 }
