@@ -14,8 +14,10 @@ export default function Footer() {
                     </Link>
 
                     <p className="mt-4 max-w-md text-sm leading-7 text-zinc-400">
-                        Premium activewear and lifestyle apparel designed for
-                        comfort, movement and everyday performance.
+                        Allwear Hub is a growing digital storefront for Allwear
+                        products, collections and future divisions — starting
+                        with activewear and expanding into a complete product
+                        platform.
                     </p>
                 </div>
 
@@ -26,11 +28,14 @@ export default function Footer() {
                         <Link href="/shop" className="hover:text-white">
                             All Products
                         </Link>
-                        <Link href="/shop" className="hover:text-white">
-                            Activewear
+                        <Link href="/#divisions" className="hover:text-white">
+                            Collections
                         </Link>
                         <Link href="/cart" className="hover:text-white">
                             Cart
+                        </Link>
+                        <Link href="/orders" className="hover:text-white">
+                            Orders
                         </Link>
                     </div>
                 </div>
@@ -47,8 +52,8 @@ export default function Footer() {
             </div>
 
             <div className="border-t border-white/10 px-4 py-5 text-center text-xs text-zinc-500">
-            Anomalie Devs © {new Date().getFullYear()} Allwear Active. All rights
-                reserved.
+                Anomalie Devs © {new Date().getFullYear()} Allwear Hub. All
+                rights reserved.
             </div>
         </footer>
     );

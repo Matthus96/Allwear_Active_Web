@@ -10,6 +10,14 @@ export default function Navbar() {
     const user = useAuthStore((state) => state.user);
     const logout = useAuthStore((state) => state.logout);
 
+    const navLinks = [
+        { label: "Home", href: "/" },
+        { label: "Shop", href: "/shop" },
+        { label: "Collections", href: "/#divisions" },
+        { label: "New Arrivals", href: "/shop" },
+        { label: "Orders", href: "/orders" },
+    ];
+
     return (
         <header className="sticky top-0 z-50 border-b border-zinc-100 bg-white/90 backdrop-blur-md">
             <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between gap-3 px-4 sm:h-16 sm:px-6 lg:px-8">
@@ -22,27 +30,17 @@ export default function Navbar() {
                 </Link>
 
                 <nav className="hidden items-center gap-8 text-sm font-bold text-zinc-700 lg:flex">
-                    <Link href="/" className="hover:text-[#6FC276]">
-                        Home
-                    </Link>
-                    <Link href="/shop" className="hover:text-[#6FC276]">
-                        Shop
-                    </Link>
-                    <Link href="/shop" className="hover:text-[#6FC276]">
-                        New Arrivals
-                    </Link>
-                    <Link href="/shop" className="hover:text-[#6FC276]">
-                        Activewear
-                    </Link>
-                    <Link href="/cart" className="hover:text-[#6FC276]">
-                        Cart
-                    </Link>
-                    {user ? (
-                        <>
-                            <Link href="/orders" className="hover:text-[#6FC276]">
-                                Orders
-                            </Link>
+                    {navLinks.map((link) => (
+                        <Link
+                            key={link.label}
+                            href={link.href}
+                            className="hover:text-[#6FC276]"
+                        >
+                            {link.label}
+                        </Link>
+                    ))}
 
+                    {user ? (
                             <button
                                 type="button"
                                 onClick={logout}
@@ -50,7 +48,6 @@ export default function Navbar() {
                             >
                                 Logout
                             </button>
-                        </>
                     ) : (
                         <Link href="/login" className="hover:text-[#6FC276]">
                             Login
@@ -61,7 +58,7 @@ export default function Navbar() {
                 <div className="flex shrink-0 items-center gap-2 sm:gap-3">
                     <Link
                         href="/shop"
-                        className="hidden rounded-full bg-zinc-950 px-5 py-3 text-sm font-black text-white transition hover:bg-zinc-800 md:inline-flex"
+                        className="hidden rounded-full bg-zinc-950 px-5 py-3 text-sm font-black text-white transition hover:bg-[#6FC276] md:inline-flex"
                     >
                         Shop Now
                     </Link>
@@ -80,47 +77,18 @@ export default function Navbar() {
             </div>
 
             {menuOpen ? (
-                <div className="absolute left-0 top-full z-50 w-full border-t border-zinc-100 bg-white px-4 py-4 shadow-xl md:hidden">
+                <div className="absolute left-0 top-full z-50 w-full border-t border-zinc-100 bg-white px-4 py-4 shadow-xl lg:hidden">
                     <div className="space-y-2">
-                        <Link
-                            href="/"
-                            onClick={() => setMenuOpen(false)}
-                            className="block rounded-2xl px-4 py-3 text-sm font-black text-[#6FC276] hover:bg-zinc-50"
-                        >
-                            Home
-                        </Link>
-
-                        <Link
-                            href="/shop"
-                            onClick={() => setMenuOpen(false)}
-                            className="block rounded-2xl px-4 py-3 text-sm font-black text-zinc-950 hover:bg-zinc-50"
-                        >
-                            Shop
-                        </Link>
-
-                        <Link
-                            href="/shop?category=New%20Arrivals"
-                            onClick={() => setMenuOpen(false)}
-                            className="block rounded-2xl px-4 py-3 text-sm font-black text-zinc-950 hover:bg-zinc-50"
-                        >
-                            New Arrivals
-                        </Link>
-
-                        <Link
-                            href="/shop?category=Activewear"
-                            onClick={() => setMenuOpen(false)}
-                            className="block rounded-2xl px-4 py-3 text-sm font-black text-zinc-950 hover:bg-zinc-50"
-                        >
-                            Activewear
-                        </Link>
-
-                        <Link
-                            href="/cart"
-                            onClick={() => setMenuOpen(false)}
-                            className="block rounded-2xl px-4 py-3 text-sm font-black text-zinc-950 hover:bg-zinc-50"
-                        >
-                            Cart
-                        </Link>
+                        {navLinks.map((link) => (
+                            <Link
+                                key={link.label}
+                                href={link.href}
+                                onClick={() => setMenuOpen(false)}
+                                className="block rounded-2xl px-4 py-3 text-sm font-black text-zinc-950 hover:bg-zinc-50"
+                            >
+                                {link.label}
+                            </Link>
+                        ))}
 
                         {user ? (
                             <>
