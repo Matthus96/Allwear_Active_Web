@@ -106,8 +106,9 @@ useEffect(() => {
             params.set("category", categoryId);
         }
 
-        router.push(`/shop${params.toString() ? `?${params}` : ""}`);
-    };
+        router.push(`/shop${params.toString() ? `?${params}` : ""}`, {
+            scroll: false,
+        });
 
     const handleCategoryClick = (categoryId?: string) => {
         updateShopRoute({
@@ -127,7 +128,9 @@ useEffect(() => {
 
     const handleClearFilters = () => {
         setSearchValue("");
-        router.push("/shop");
+        router.push("/shop", {
+        scroll: false,
+    });
     };
 
     const productCount = products.length;
