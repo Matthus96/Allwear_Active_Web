@@ -31,23 +31,43 @@ function ShopContent() {
 
     const [searchValue, setSearchValue] = useState(query);
 
-    const menuParams = useMemo(
-        () => ({
-            category,
-            query,
-        }),
-        [category, query]
-    );
+const [products, setProducts] = useState<Product[]>([]);
+const [loading, setLoading] = useState(true);
 
-    const {
-        data: productsData,
-        loading,
-    } = useAppwrite<Product[], any>({
-        fn: getMenu,
-        params: menuParams,
-    });
+useEffect(() => {
+    let cancelled = false;
 
-    const products = productsData ?? [];
+    const loadProducts = async () => {
+        try {
+            setLoading(true);
+
+            const data = await getMenu({
+                category,
+                query,
+            });
+
+            if (!cancelled) {
+                setProducts(data);
+            }
+        } catch (error) {
+            console.log("SHOP PRODUCTS ERROR:", error);
+
+            if (!cancelled) {
+                setProducts([]);
+            }
+        } finally {
+            if (!cancelled) {
+                setLoading(false);
+            }
+        }
+    };
+
+    loadProducts();
+
+    return () => {
+        cancelled = true;
+    };
+}, [category, query]);
 
     const { data: categories = [] } = useAppwrite<Category[], any>({
         fn: getCategories,
