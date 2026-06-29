@@ -4,11 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 
-import CartButton from "@/components/CartButton";
-import MeasurementSheet from "@/components/MeasurementSheet";
-import ProductImageCarousel from "@/components/ProductImageCarousel";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import MeasurementSheet from "@/components/MeasurementSheet";
+import ProductImageCarousel from "@/components/ProductImageCarousel";
 
 import {
     getMenuById,
@@ -74,14 +73,9 @@ export default function ProductPage() {
         const sizeInventory = getSizeInventory(size);
 
         if (!sizeInventory) return false;
+        if (sizeInventory.available === false) return false;
 
-        const quantity = Number(sizeInventory.quantity || 0);
-
-        if (sizeInventory.available === false) {
-            return false;
-        }
-
-        return quantity > 0;
+        return Number(sizeInventory.quantity || 0) > 0;
     };
 
     const availableSizes = useMemo(() => {
@@ -132,17 +126,17 @@ export default function ProductPage() {
 
     if (loading) {
         return (
-            <main className="min-h-screen bg-white">
+            <main className="min-h-screen overflow-x-hidden bg-white">
                 <Navbar />
 
-                <section className="mx-auto grid max-w-7xl gap-10 px-5 py-10 lg:grid-cols-2">
-                    <div className="aspect-square animate-pulse rounded-[3rem] bg-zinc-100" />
+                <section className="mx-auto grid w-full max-w-7xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-2 lg:py-12">
+                    <div className="aspect-square animate-pulse rounded-[2rem] bg-zinc-100" />
 
-                    <div className="flex flex-col justify-center">
+                    <div className="min-w-0 space-y-5">
                         <div className="h-5 w-40 animate-pulse rounded bg-zinc-100" />
-                        <div className="mt-5 h-16 w-full max-w-xl animate-pulse rounded bg-zinc-100" />
-                        <div className="mt-5 h-8 w-40 animate-pulse rounded bg-zinc-100" />
-                        <div className="mt-8 h-28 w-full max-w-xl animate-pulse rounded bg-zinc-100" />
+                        <div className="h-16 w-full max-w-xl animate-pulse rounded bg-zinc-100" />
+                        <div className="h-8 w-40 animate-pulse rounded bg-zinc-100" />
+                        <div className="h-28 w-full max-w-xl animate-pulse rounded bg-zinc-100" />
                     </div>
                 </section>
 
@@ -153,26 +147,26 @@ export default function ProductPage() {
 
     if (error || !product) {
         return (
-            <main className="min-h-screen bg-white">
+            <main className="min-h-screen overflow-x-hidden bg-white">
                 <Navbar />
 
-                <section className="flex min-h-[70vh] items-center justify-center px-5">
-                    <div className="max-w-xl rounded-[2rem] bg-zinc-50 p-8 text-center ring-1 ring-zinc-100">
-                        <p className="text-sm font-black uppercase tracking-[0.25em] text-[#6FC276]">
+                <section className="flex min-h-[70vh] items-center justify-center px-4">
+                    <div className="w-full max-w-xl rounded-[2rem] bg-zinc-50 p-6 text-center ring-1 ring-zinc-100">
+                        <p className="text-xs font-black uppercase tracking-[0.25em] text-[#6FC276]">
                             Product Error
                         </p>
 
-                        <h1 className="mt-3 text-3xl font-black text-zinc-950">
+                        <h1 className="mt-3 text-2xl font-black text-zinc-950">
                             Product not found
                         </h1>
 
-                        <p className="mt-3 text-zinc-500">
+                        <p className="mt-3 break-words text-sm text-zinc-500">
                             {error || "This product could not be loaded."}
                         </p>
 
                         <Link
                             href="/shop"
-                            className="mt-6 inline-flex rounded-full bg-[#6FC276] px-6 py-3 font-black text-white"
+                            className="mt-6 inline-flex rounded-full bg-[#6FC276] px-6 py-3 text-sm font-black text-white"
                         >
                             Back to Shop
                         </Link>
@@ -185,27 +179,27 @@ export default function ProductPage() {
     }
 
     return (
-        <main className="min-h-screen bg-white">
+        <main className="min-h-screen w-full overflow-x-hidden bg-white">
             <Navbar />
 
-                <section className="bg-zinc-950 px-5 py-5 text-white">
-                    <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
-                        <Link
-                            href="/shop"
-                            className="rounded-full bg-white/10 px-5 py-3 text-sm font-black text-white ring-1 ring-white/10 transition hover:bg-white hover:text-zinc-950"
-                        >
-                            ← Back to Shop
-                        </Link>
+            <section className="bg-zinc-950 px-4 py-4 text-white">
+                <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-4">
+                    <Link
+                        href="/shop"
+                        className="rounded-full bg-white/10 px-4 py-3 text-xs font-black text-white ring-1 ring-white/10 transition hover:bg-white hover:text-zinc-950 sm:px-5 sm:text-sm"
+                    >
+                        ← Back to Shop
+                    </Link>
 
-                        <p className="hidden text-sm font-black uppercase tracking-[0.2em] text-[#6FC276] sm:block">
-                            Product Details
-                        </p>
-                    </div>
-                </section>
+                    <p className="hidden text-sm font-black uppercase tracking-[0.2em] text-[#6FC276] sm:block">
+                        Product Details
+                    </p>
+                </div>
+            </section>
 
-            <section className="mx-auto grid max-w-7xl gap-10 px-5 py-10 lg:grid-cols-[1.05fr_0.95fr] lg:py-14">
-                <div>
-                    <div className="overflow-hidden rounded-[3rem] bg-zinc-50 ring-1 ring-zinc-100">
+            <section className="mx-auto grid w-full max-w-7xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-10 lg:py-14">
+                <div className="min-w-0 overflow-hidden">
+                    <div className="w-full overflow-hidden rounded-[2rem] bg-zinc-50 ring-1 ring-zinc-100">
                         <ProductImageCarousel
                             productName={product.name}
                             frontImage={product.image_url}
@@ -217,9 +211,9 @@ export default function ProductPage() {
                         />
                     </div>
 
-                    <div className="mt-5 grid gap-4 sm:grid-cols-3">
-                        <div className="rounded-[1.5rem] bg-zinc-50 p-5 ring-1 ring-zinc-100">
-                            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#6FC276]">
+                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                        <div className="rounded-[1.5rem] bg-zinc-50 p-4 ring-1 ring-zinc-100">
+                            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#6FC276]">
                                 Delivery
                             </p>
                             <p className="mt-2 text-sm font-bold text-zinc-700">
@@ -227,8 +221,8 @@ export default function ProductPage() {
                             </p>
                         </div>
 
-                        <div className="rounded-[1.5rem] bg-zinc-50 p-5 ring-1 ring-zinc-100">
-                            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#6FC276]">
+                        <div className="rounded-[1.5rem] bg-zinc-50 p-4 ring-1 ring-zinc-100">
+                            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#6FC276]">
                                 Stock
                             </p>
                             <p className="mt-2 text-sm font-bold text-zinc-700">
@@ -236,8 +230,8 @@ export default function ProductPage() {
                             </p>
                         </div>
 
-                        <div className="rounded-[1.5rem] bg-zinc-50 p-5 ring-1 ring-zinc-100">
-                            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#6FC276]">
+                        <div className="rounded-[1.5rem] bg-zinc-50 p-4 ring-1 ring-zinc-100">
+                            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#6FC276]">
                                 Fit
                             </p>
                             <p className="mt-2 text-sm font-bold text-zinc-700">
@@ -247,45 +241,38 @@ export default function ProductPage() {
                     </div>
                 </div>
 
-                <div className="flex flex-col justify-center">
-                    <p className="text-sm font-black uppercase tracking-[0.25em] text-[#6FC276]">
+                <div className="min-w-0 overflow-hidden">
+                    <p className="text-xs font-black uppercase tracking-[0.22em] text-[#6FC276] sm:text-sm">
                         Allwear Hub Product
                     </p>
 
-                    <h1 className="mt-4 text-4xl font-black leading-tight tracking-tight text-zinc-950 md:text-6xl">
+                    <h1 className="mt-4 max-w-full break-words text-3xl font-black leading-tight tracking-tight text-zinc-950 sm:text-4xl md:text-6xl">
                         {product.name}
                     </h1>
 
                     <div className="mt-5 flex flex-wrap items-center gap-3">
-                        <p className="rounded-full bg-zinc-950 px-5 py-3 text-2xl font-black text-white">
+                        <p className="rounded-full bg-zinc-950 px-5 py-3 text-xl font-black text-white sm:text-2xl">
                             R{Number(product.price || 0).toFixed(2)}
                         </p>
 
-                        <p className="rounded-full bg-zinc-100 px-5 py-3 text-sm font-black text-zinc-600">
+                        <p className="rounded-full bg-zinc-100 px-5 py-3 text-xs font-black text-zinc-600 sm:text-sm">
                             Online Store
                         </p>
                     </div>
 
-                    {product.description ? (
-                        <p className="mt-6 max-w-xl text-base leading-8 text-zinc-600">
-                            {product.description}
-                        </p>
-                    ) : (
-                        <p className="mt-6 max-w-xl text-base leading-8 text-zinc-600">
-                            Premium apparel designed for comfort, movement and
-                            everyday performance. Select your size below to
-                            check availability and add this product to your cart.
-                        </p>
-                    )}
+                    <p className="mt-6 max-w-xl break-words text-sm leading-7 text-zinc-600 sm:text-base sm:leading-8">
+                        {product.description ||
+                            "Premium apparel designed for comfort, movement and everyday performance. Select your size below to check availability and add this product to your cart."}
+                    </p>
 
-                    <div className="mt-8 rounded-[2rem] bg-zinc-50 p-5 ring-1 ring-zinc-100">
-                        <div className="mb-4 flex items-center justify-between gap-4">
+                    <div className="mt-8 w-full rounded-[2rem] bg-zinc-50 p-4 ring-1 ring-zinc-100 sm:p-5">
+                        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <p className="text-sm font-black uppercase tracking-[0.2em] text-zinc-400">
+                                <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400">
                                     Select Size
                                 </p>
 
-                                <h2 className="mt-1 text-2xl font-black text-zinc-950">
+                                <h2 className="mt-1 text-xl font-black text-zinc-950 sm:text-2xl">
                                     Choose your fit
                                 </h2>
                             </div>
@@ -297,7 +284,7 @@ export default function ProductPage() {
                             ) : null}
                         </div>
 
-                        <div className="flex flex-wrap gap-3">
+                        <div className="grid w-full grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3">
                             {SIZES.map((size) => {
                                 const active = selectedSize === size;
                                 const available = isSizeAvailable(size);
@@ -313,11 +300,10 @@ export default function ProductPage() {
                                         disabled={!available}
                                         onClick={() => {
                                             if (!available) return;
-
                                             setSelectedSize(size);
                                             setMeasurementOpen(true);
                                         }}
-                                        className={`min-h-16 min-w-16 rounded-2xl border px-4 py-2 text-sm font-black transition ${
+                                        className={`min-h-14 w-full rounded-2xl border px-2 py-2 text-xs font-black transition sm:min-h-16 sm:px-4 sm:text-sm ${
                                             active
                                                 ? "border-[#6FC276] bg-[#6FC276] text-white shadow-md"
                                                 : available
@@ -348,12 +334,12 @@ export default function ProductPage() {
                         ) : null}
                     </div>
 
-                    <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+                    <div className="mt-8 grid w-full gap-3 sm:grid-cols-2">
                         <button
                             type="button"
                             disabled={!selectedSizeAvailable}
                             onClick={handleAddToCart}
-                            className={`rounded-full px-8 py-4 font-black text-white transition ${
+                            className={`w-full rounded-full px-5 py-4 text-sm font-black text-white transition sm:px-6 sm:text-base ${
                                 selectedSizeAvailable
                                     ? "bg-[#6FC276] hover:bg-zinc-950"
                                     : "cursor-not-allowed bg-zinc-300"
@@ -366,18 +352,18 @@ export default function ProductPage() {
 
                         <Link
                             href="/cart"
-                            className="rounded-full bg-zinc-100 px-8 py-4 text-center font-black text-zinc-950 transition hover:bg-zinc-200"
+                            className="w-full rounded-full bg-zinc-100 px-5 py-4 text-center text-sm font-black text-zinc-950 transition hover:bg-zinc-200 sm:px-6 sm:text-base"
                         >
                             View Cart
                         </Link>
                     </div>
 
-                    <div className="mt-8 rounded-[2rem] border border-zinc-100 p-5">
-                        <h3 className="text-lg font-black text-zinc-950">
+                    <div className="mt-8 w-full overflow-hidden rounded-[2rem] border border-zinc-100 p-4 sm:p-5">
+                        <h3 className="text-base font-black text-zinc-950 sm:text-lg">
                             Product support
                         </h3>
 
-                        <p className="mt-2 text-sm leading-6 text-zinc-500">
+                        <p className="mt-2 break-words text-sm leading-6 text-zinc-500">
                             Need help with sizing, stock or order support?
                             Contact Allwear before checkout for assistance.
                         </p>
