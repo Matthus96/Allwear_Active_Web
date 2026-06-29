@@ -140,25 +140,81 @@ function ShopContent() {
         <main className="min-h-screen overflow-x-hidden bg-white">
             <Navbar />
 
-            <section className="bg-zinc-950 px-4 py-14 text-white sm:px-6 sm:py-16 lg:px-8 lg:py-20">
-                <div className="mx-auto w-full max-w-7xl">
-                    <p className="text-xs font-black uppercase tracking-[0.22em] text-[#6FC276] sm:text-sm">
-                        Collection
-                    </p>
+        <section className="relative overflow-hidden bg-zinc-950 px-4 py-14 text-white sm:px-6 sm:py-16 lg:px-8 lg:py-20">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(111,194,118,0.35),transparent_35%)]" />
 
-                    <h1 className="mt-4 max-w-4xl text-4xl font-black leading-tight tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
-                        Shop Allwear Active
-                    </h1>
+            <div className="relative mx-auto w-full max-w-7xl">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-[#6FC276] sm:text-sm">
+                    Browsing: {selectedCategoryName}
+                </p>
 
-                    <p className="mt-5 max-w-2xl text-sm leading-7 text-zinc-300 sm:text-base md:text-lg md:leading-8">
-                        Browse our latest activewear, lifestyle apparel and
-                        performance-ready pieces. Add your favourites to cart
-                        and get delivery for a flat R100.00.
-                    </p>
+                <h1 className="mt-4 max-w-4xl text-4xl font-black leading-tight tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
+                    Shop every available Allwear product in one place.
+                </h1>
+
+                <p className="mt-5 max-w-2xl text-sm leading-7 text-zinc-300 sm:text-base md:text-lg md:leading-8">
+                    Browse activewear, event collections and future Allwear product
+                    divisions through one growing digital storefront. Search, filter,
+                    add to cart and checkout with flat-rate local delivery.
+                </p>
+
+                <div className="mt-8 flex flex-wrap gap-3">
+                    {[
+                        "Activewear",
+                        "Event Collections",
+                        "Supporter Wear",
+                        "New Arrivals",
+                        "All Products",
+                    ].map((item) => (
+                        <span
+                            key={item}
+                            className="rounded-full bg-white/10 px-5 py-3 text-xs font-black uppercase tracking-wide text-white ring-1 ring-white/10"
+                        >
+                            {item}
+                        </span>
+                    ))}
                 </div>
-            </section>
+            </div>
+        </section>
 
             <section className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
+                <div className="mb-8 grid gap-4 md:grid-cols-3">
+                    <div className="rounded-[2rem] bg-zinc-50 p-5 ring-1 ring-zinc-100">
+                        <p className="text-sm font-black uppercase tracking-[0.2em] text-[#6FC276]">
+                            Browse
+                        </p>
+                        <h3 className="mt-2 text-xl font-black text-zinc-950">
+                            Product catalogue
+                        </h3>
+                        <p className="mt-2 text-sm leading-6 text-zinc-500">
+                            Explore available Allwear products and collections.
+                        </p>
+                    </div>
+
+                    <div className="rounded-[2rem] bg-zinc-50 p-5 ring-1 ring-zinc-100">
+                        <p className="text-sm font-black uppercase tracking-[0.2em] text-[#6FC276]">
+                            Filter
+                        </p>
+                        <h3 className="mt-2 text-xl font-black text-zinc-950">
+                            Find your range
+                        </h3>
+                        <p className="mt-2 text-sm leading-6 text-zinc-500">
+                            Use categories and search to narrow products quickly.
+                        </p>
+                    </div>
+
+                    <div className="rounded-[2rem] bg-zinc-50 p-5 ring-1 ring-zinc-100">
+                        <p className="text-sm font-black uppercase tracking-[0.2em] text-[#6FC276]">
+                            Checkout
+                        </p>
+                        <h3 className="mt-2 text-xl font-black text-zinc-950">
+                            Cart ready
+                        </h3>
+                        <p className="mt-2 text-sm leading-6 text-zinc-500">
+                            Add items to cart and complete your online order.
+                        </p>
+                    </div>
+                </div>
                 <div className="mb-8 flex flex-col gap-5 border-b border-zinc-100 pb-8 lg:mb-10 lg:flex-row lg:items-end lg:justify-between">
                     <div className="min-w-0">
                         <p className="text-xs font-black uppercase tracking-[0.2em] text-[#6FC276] sm:text-sm">

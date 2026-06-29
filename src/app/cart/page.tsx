@@ -1,16 +1,14 @@
 "use client";
 
-"use client";
-
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import Link from "next/link";
 
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
+
 import { useCartStore } from "@/store/cart.store";
 import { useAuthStore } from "@/store/auth.store";
-
-const INIT_URL = "https://6a0d6117002dd75f9543.nyc.appwrite.run";
-const VERIFY_URL = "https://6a0d7486003a70759065.nyc.appwrite.run";
 
 const DELIVERY_FEE = 100.0;
 
@@ -19,10 +17,10 @@ export default function CartPage() {
     const totalPrice = useCartStore((s) => s.getTotalPrice());
     const totalItems = useCartStore((s) => s.getTotalItems());
     const clearCart = useCartStore((s) => s.clearCart);
-    const addOrder = useCartStore((s) => s.addOrder);
     const increaseQty = useCartStore((s) => s.increaseQty);
     const decreaseQty = useCartStore((s) => s.decreaseQty);
     const removeItem = useCartStore((s) => s.removeItem);
+
     const router = useRouter();
     const user = useAuthStore((state) => state.user);
     const authLoading = useAuthStore((state) => state.loading);
@@ -36,144 +34,184 @@ export default function CartPage() {
     const finalTotal = subtotal + deliveryFee;
 
     const handlePayNow = async () => {
-    if (loading || lockRef.current) return;
+        if (loading || lockRef.current) return;
 
-    lockRef.current = true;
-    setLoading(true);
+        lockRef.current = true;
+        setLoading(true);
 
-    try {
-        if (!items.length) {
-            alert("Cart is empty");
-            return;
-        }
+        try {
+            if (!items.length) {
+                alert("Cart is empty");
+                return;
+            }
 
-        if (!hydrated || authLoading) {
-            alert("Checking your account. Please try again in a moment.");
-            return;
-        }
+            if (!hydrated || authLoading) {
+                alert("Checking your account. Please try again in a moment.");
+                return;
+            }
 
-        if (!user?.email || !user?.$id) {
-            router.push("/login?redirect=/cart");
-            return;
-        }
+            if (!user?.email || !user?.$id) {
+                router.push("/login?redirect=/cart");
+                return;
+            }
 
-        const initRes = await fetch("/api/paystack/init", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                email: user.email,
-                userId: user.$id,
-                amount: finalTotal,
+            const initRes = await fetch("/api/paystack/init", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    email: user.email,
+                    userId: user.$id,
+                    amount: finalTotal,
+                    items,
+                    subtotal,
+                    deliveryFee,
+                }),
+            });
+
+            const initData = await initRes.json();
+
+            if (!initRes.ok || !initData?.authorization_url) {
+                throw new Error(initData?.message || "Payment init failed");
+            }
+
+            useCartStore.getState().setPendingPayment({
+                reference: initData.reference,
                 items,
-                subtotal,
-                deliveryFee,
-            }),
-        });
+                totalPrice: finalTotal,
+            });
 
-        const initData = await initRes.json();
-
-        if (!initRes.ok || !initData?.authorization_url) {
-            throw new Error(initData?.message || "Payment init failed");
+            window.location.href = initData.authorization_url;
+        } catch (error: any) {
+            alert(error?.message || "Something went wrong.");
+        } finally {
+            setLoading(false);
+            lockRef.current = false;
         }
-
-        useCartStore.getState().setPendingPayment({
-            reference: initData.reference,
-            items,
-            totalPrice: finalTotal,
-        });
-
-        window.location.href = initData.authorization_url;
-    } catch (error: any) {
-        alert(error?.message || "Something went wrong.");
-    } finally {
-        setLoading(false);
-        lockRef.current = false;
-    }
-};
+    };
 
     return (
         <main className="min-h-screen bg-white">
-            <section className="mx-auto max-w-5xl px-5 py-8">
-                <div className="mb-8 flex items-center justify-between">
+            <Navbar />
+
+            <section className="relative overflow-hidden bg-zinc-950 px-5 py-14 text-white">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(111,194,118,0.35),transparent_35%)]" />
+
+                <div className="relative mx-auto max-w-7xl">
+                    <p className="text-sm font-black uppercase tracking-[0.25em] text-[#6FC276]">
+                        Allwear Hub Checkout
+                    </p>
+
+                    <h1 className="mt-4 max-w-3xl text-4xl font-black tracking-tight md:text-6xl">
+                        Review your cart.
+                    </h1>
+
+                    <p className="mt-5 max-w-2xl text-sm leading-7 text-zinc-300 md:text-base">
+                        Check your selected products, sizes and quantities
+                        before continuing to secure payment.
+                    </p>
+                </div>
+            </section>
+
+            <section className="mx-auto max-w-7xl px-5 py-10">
+                <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <p className="text-sm font-bold text-[#6FC276]">
-                            Cart
+                        <p className="text-sm font-black uppercase tracking-[0.2em] text-[#6FC276]">
+                            Cart Summary
                         </p>
-                        <h1 className="text-3xl font-black text-zinc-950">
-                            Your order
-                        </h1>
+
+                        <h2 className="mt-2 text-3xl font-black text-zinc-950">
+                            {items.length > 0
+                                ? `${totalItems} item${
+                                      totalItems === 1 ? "" : "s"
+                                  } in your cart`
+                                : "Your cart is empty"}
+                        </h2>
                     </div>
 
                     <Link
                         href="/shop"
-                        className="rounded-full bg-zinc-100 px-5 py-3 text-sm font-bold text-zinc-900"
+                        className="w-fit rounded-full bg-zinc-100 px-5 py-3 text-sm font-black text-zinc-900 transition hover:bg-zinc-950 hover:text-white"
                     >
                         Continue Shopping
                     </Link>
                 </div>
 
                 {items.length === 0 ? (
-                    <div className="rounded-3xl border border-zinc-100 bg-zinc-50 p-10 text-center">
-                        <h2 className="text-xl font-black text-zinc-950">
-                            Your cart is empty
+                    <div className="rounded-[3rem] border border-zinc-100 bg-zinc-50 p-8 text-center md:p-14">
+                        <p className="text-sm font-black uppercase tracking-[0.25em] text-[#6FC276]">
+                            Empty Cart
+                        </p>
+
+                        <h2 className="mt-3 text-3xl font-black text-zinc-950 md:text-5xl">
+                            Nothing here yet.
                         </h2>
-                        <p className="mt-2 text-zinc-500">
-                            Add some products before checking out.
+
+                        <p className="mx-auto mt-4 max-w-md text-sm leading-7 text-zinc-500">
+                            Browse the Allwear Hub storefront and add products
+                            to your cart before checking out.
                         </p>
 
                         <Link
                             href="/shop"
-                            className="mt-6 inline-flex rounded-full bg-[#6FC276] px-6 py-3 font-black text-white"
+                            className="mt-8 inline-flex rounded-full bg-[#6FC276] px-8 py-4 font-black text-white transition hover:bg-zinc-950"
                         >
                             Shop Now
                         </Link>
                     </div>
                 ) : (
-                    <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
+                    <div className="grid gap-8 lg:grid-cols-[1fr_390px]">
                         <div className="space-y-4">
                             {items.map((item) => (
                                 <div
                                     key={`${item.productId}-${item.size ?? "default"}`}
-                                    className="flex gap-4 rounded-3xl border border-zinc-100 bg-white p-4 shadow-sm"
+                                    className="grid gap-4 rounded-[2rem] border border-zinc-100 bg-white p-4 shadow-sm transition hover:shadow-md sm:grid-cols-[140px_1fr]"
                                 >
-                                    <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded-2xl bg-zinc-50 p-3">
+                                    <div className="flex aspect-square w-full items-center justify-center rounded-[1.5rem] bg-zinc-50 p-4 sm:h-36 sm:w-36">
                                         <img
-                                            src={
-                                                item.stockSnapshot.image_url
-                                            }
+                                            src={item.stockSnapshot.image_url}
                                             alt={item.stockSnapshot.name}
                                             className="h-full w-full object-contain"
                                         />
                                     </div>
 
-                                    <div className="flex flex-1 flex-col justify-between">
-                                        <div>
-                                            <h3 className="font-black text-zinc-950">
-                                                {
-                                                    item.stockSnapshot
-                                                        .name
-                                                }
-                                            </h3>
+                                    <div className="flex min-w-0 flex-col justify-between">
+                                        <div className="min-w-0">
+                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                                <div>
+                                                    <p className="text-xs font-black uppercase tracking-[0.2em] text-[#6FC276]">
+                                                        Allwear Product
+                                                    </p>
 
-                                            <p className="mt-1 text-sm text-zinc-500">
-                                                Size:{" "}
-                                                {item.size ?? "default"}
-                                            </p>
+                                                    <h3 className="mt-1 line-clamp-2 text-lg font-black text-zinc-950">
+                                                        {item.stockSnapshot.name}
+                                                    </h3>
+                                                </div>
 
-                                            <p className="mt-1 font-bold text-zinc-900">
-                                                R
-                                                {Number(
-                                                    item.stockSnapshot
-                                                        .price || 0
-                                                ).toFixed(2)}
-                                            </p>
+                                                <p className="shrink-0 text-lg font-black text-zinc-950">
+                                                    R
+                                                    {Number(
+                                                        item.stockSnapshot.price || 0
+                                                    ).toFixed(2)}
+                                                </p>
+                                            </div>
+
+                                            <div className="mt-4 flex flex-wrap gap-2">
+                                                <span className="rounded-full bg-zinc-100 px-4 py-2 text-xs font-black text-zinc-600">
+                                                    Size: {item.size ?? "default"}
+                                                </span>
+
+                                                <span className="rounded-full bg-zinc-100 px-4 py-2 text-xs font-black text-zinc-600">
+                                                    Qty: {item.quantity}
+                                                </span>
+                                            </div>
                                         </div>
 
-                                        <div className="mt-4 flex items-center justify-between">
-                                            <div className="flex items-center rounded-full bg-zinc-100">
+                                        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                            <div className="flex w-fit items-center rounded-full bg-zinc-100">
                                                 <button
+                                                    type="button"
                                                     onClick={() =>
                                                         decreaseQty(
                                                             item.id,
@@ -181,16 +219,17 @@ export default function CartPage() {
                                                             item.customizations
                                                         )
                                                     }
-                                                    className="px-4 py-2 font-black"
+                                                    className="px-4 py-2 font-black text-zinc-950"
                                                 >
-                                                    -
+                                                    −
                                                 </button>
 
-                                                <span className="min-w-8 text-center font-bold">
+                                                <span className="min-w-8 text-center font-black text-zinc-950">
                                                     {item.quantity}
                                                 </span>
 
                                                 <button
+                                                    type="button"
                                                     onClick={() =>
                                                         increaseQty(
                                                             item.id,
@@ -198,13 +237,14 @@ export default function CartPage() {
                                                             item.customizations
                                                         )
                                                     }
-                                                    className="px-4 py-2 font-black"
+                                                    className="px-4 py-2 font-black text-zinc-950"
                                                 >
                                                     +
                                                 </button>
                                             </div>
 
                                             <button
+                                                type="button"
                                                 onClick={() =>
                                                     removeItem(
                                                         item.id,
@@ -212,9 +252,9 @@ export default function CartPage() {
                                                         item.customizations
                                                     )
                                                 }
-                                                className="text-sm font-bold text-red-600"
+                                                className="w-fit text-sm font-black text-red-600"
                                             >
-                                                Remove
+                                                Remove item
                                             </button>
                                         </div>
                                     </div>
@@ -222,17 +262,21 @@ export default function CartPage() {
                             ))}
                         </div>
 
-                        <aside className="h-fit rounded-3xl border border-zinc-100 bg-zinc-50 p-6">
-                            <h2 className="text-lg font-black text-zinc-950">
+                        <aside className="h-fit rounded-[2rem] border border-zinc-100 bg-zinc-50 p-6 lg:sticky lg:top-28">
+                            <p className="text-sm font-black uppercase tracking-[0.2em] text-[#6FC276]">
                                 Payment Summary
+                            </p>
+
+                            <h2 className="mt-2 text-2xl font-black text-zinc-950">
+                                Order total
                             </h2>
 
-                            <div className="mt-6 space-y-4">
+                            <div className="mt-6 space-y-4 rounded-[1.5rem] bg-white p-5 ring-1 ring-zinc-100">
                                 <div className="flex justify-between text-sm">
                                     <span className="text-zinc-500">
                                         Items ({totalItems})
                                     </span>
-                                    <span className="font-bold">
+                                    <span className="font-black text-zinc-950">
                                         R{subtotal.toFixed(2)}
                                     </span>
                                 </div>
@@ -241,17 +285,17 @@ export default function CartPage() {
                                     <span className="text-zinc-500">
                                         Delivery
                                     </span>
-                                    <span className="font-bold">
+                                    <span className="font-black text-zinc-950">
                                         R{deliveryFee.toFixed(2)}
                                     </span>
                                 </div>
 
                                 <div className="border-t border-zinc-200 pt-4">
-                                    <div className="flex justify-between">
-                                        <span className="font-black">
+                                    <div className="flex justify-between text-lg">
+                                        <span className="font-black text-zinc-950">
                                             Total
                                         </span>
-                                        <span className="font-black">
+                                        <span className="font-black text-zinc-950">
                                             R{finalTotal.toFixed(2)}
                                         </span>
                                     </div>
@@ -259,23 +303,36 @@ export default function CartPage() {
                             </div>
 
                             <button
+                                type="button"
                                 onClick={handlePayNow}
                                 disabled={loading}
-                                className="mt-6 w-full rounded-full bg-[#6FC276] px-6 py-4 font-black text-white disabled:opacity-60"
+                                className="mt-6 w-full rounded-full bg-[#6FC276] px-6 py-4 font-black text-white transition hover:bg-zinc-950 disabled:cursor-not-allowed disabled:opacity-60"
                             >
                                 {loading ? "Processing..." : "Pay Now"}
                             </button>
 
                             <button
+                                type="button"
                                 onClick={clearCart}
-                                className="mt-3 w-full rounded-full bg-white px-6 py-4 font-bold text-zinc-700"
+                                className="mt-3 w-full rounded-full bg-white px-6 py-4 font-black text-zinc-700 ring-1 ring-zinc-200 transition hover:bg-zinc-100"
                             >
                                 Clear Cart
                             </button>
+
+                            <div className="mt-5 rounded-[1.5rem] bg-white p-5 text-sm leading-6 text-zinc-500 ring-1 ring-zinc-100">
+                                Secure payment will open after you confirm your
+                                cart. Delivery is charged at a flat rate of{" "}
+                                <span className="font-black text-zinc-950">
+                                    R100.00
+                                </span>
+                                .
+                            </div>
                         </aside>
                     </div>
                 )}
             </section>
+
+            <Footer />
         </main>
     );
 }
