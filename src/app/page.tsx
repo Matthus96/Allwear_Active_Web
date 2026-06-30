@@ -51,7 +51,6 @@ export default function HomePage() {
     ];
 
     const futureDivisions = [
-        "Schoolwear",
         "Workwear",
         "Corporatewear",
         "Fashion Basics",
@@ -388,7 +387,7 @@ export default function HomePage() {
                             The current Allwear Active site can grow into a
                             Bash-style product platform for every Allwear
                             division, without losing the shop and checkout
-                            system you already have.
+                            system we already have.
                         </p>
                     </div>
 
