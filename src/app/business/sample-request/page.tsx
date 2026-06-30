@@ -282,54 +282,78 @@ Email: ${form.contactEmail || "-"}
                         </div>
                     </div>
 
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <select
-                            value={form.representative}
-                            onChange={(e) =>
-                                updateField("representative", e.target.value)
-                            }
-                            className="rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm font-semibold text-zinc-700 outline-none focus:border-[#6FC276]"
-                        >
-                            <option value="">Select representative</option>
+                   <div className="grid gap-4 md:grid-cols-2">
+    <label className="grid gap-2">
+        <span className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
+            Representative
+        </span>
 
-                            {representatives.map((rep) => (
-                                <option key={rep} value={rep}>
-                                    {rep}
-                                </option>
-                            ))}
-                        </select>
+        <select
+            value={form.representative}
+            onChange={(e) =>
+                updateField("representative", e.target.value)
+            }
+            className="rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm font-semibold text-zinc-700 outline-none focus:border-[#6FC276]"
+        >
+            <option value="">Select representative</option>
 
-                        <select
-                            value={form.sampleCategory}
-                            onChange={(e) =>
-                                updateField("sampleCategory", e.target.value)
-                            }
-                            className="rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm font-semibold text-zinc-700 outline-none focus:border-[#6FC276]"
-                        >
-                            <option value="">Select sample category</option>
+            {representatives.map((rep) => (
+                <option key={rep} value={rep}>
+                    {rep}
+                </option>
+            ))}
+        </select>
+    </label>
 
-                            {sampleCategories.map((category) => (
-                                <option key={category} value={category}>
-                                    {category}
-                                </option>
-                            ))}
-                        </select>
+    <label className="grid gap-2">
+        <span className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
+            Sample Category
+        </span>
 
-                        <input
-                            value={form.date}
-                            onChange={(e) => updateField("date", e.target.value)}
-                            type="date"
-                            className="rounded-2xl border border-zinc-200 px-4 py-4 text-sm font-semibold outline-none focus:border-[#6FC276]"
-                        />
+        <select
+            value={form.sampleCategory}
+            onChange={(e) =>
+                updateField("sampleCategory", e.target.value)
+            }
+            className="rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm font-semibold text-zinc-700 outline-none focus:border-[#6FC276]"
+        >
+            <option value="">Select sample category</option>
 
-                        <input
-                            value={form.dateRequired}
-                            onChange={(e) =>
-                                updateField("dateRequired", e.target.value)
-                            }
-                            type="date"
-                            className="rounded-2xl border border-zinc-200 px-4 py-4 text-sm font-semibold outline-none focus:border-[#6FC276]"
-                        />
+            {sampleCategories.map((category) => (
+                <option key={category} value={category}>
+                    {category}
+                </option>
+            ))}
+        </select>
+    </label>
+
+    <label className="grid gap-2">
+        <span className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
+            Request Date
+        </span>
+
+        <input
+            value={form.date}
+            onChange={(e) => updateField("date", e.target.value)}
+            type="date"
+            className="rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm font-semibold outline-none focus:border-[#6FC276]"
+        />
+    </label>
+
+    <label className="grid gap-2">
+        <span className="text-xs font-black uppercase tracking-[0.2em] text-zinc-500">
+            Date Required
+        </span>
+
+        <input
+            value={form.dateRequired}
+            onChange={(e) =>
+                updateField("dateRequired", e.target.value)
+            }
+            type="date"
+            className="rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm font-semibold outline-none focus:border-[#6FC276]"
+        />
+    </label>
 
                         <input
                             value={form.organisation}
