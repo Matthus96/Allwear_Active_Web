@@ -487,13 +487,13 @@ export default function OrdersPage() {
                                         </div>
                                     </div>
 
-                                    <div className="grid gap-6 p-5 md:p-6 lg:grid-cols-[1fr_360px]">
-                                        <div className="min-w-0">
+                                    <div className="grid items-stretch gap-6 p-5 md:p-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+                                        <div className="flex min-w-0 flex-col">
                                             <h4 className="font-black text-zinc-950">
                                                 Items
                                             </h4>
 
-                                            <div className="mt-4 space-y-3">
+                                            <div className="mt-4 flex flex-1 flex-col gap-3">
                                                 {parsedItems.length > 0 ? (
                                                     parsedItems.map(
                                                         (item, index) => {
@@ -521,9 +521,9 @@ export default function OrdersPage() {
                                                                         item.id ||
                                                                         "item"
                                                                     }-${index}`}
-                                                                    className="grid gap-3 rounded-2xl bg-zinc-50 p-3 sm:grid-cols-[72px_1fr_auto]"
+                                                                    className="grid gap-4 rounded-2xl bg-zinc-50 p-4 sm:grid-cols-[96px_minmax(0,1fr)_auto] sm:items-center"
                                                                 >
-                                                                    <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-white p-2 ring-1 ring-zinc-100">
+                                                                    <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-white p-2 ring-1 ring-zinc-100">
                                                                         {itemImage ? (
                                                                             <img
                                                                                 src={
