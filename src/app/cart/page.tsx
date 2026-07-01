@@ -9,6 +9,7 @@ import Footer from "@/components/Footer";
 
 import { useCartStore } from "@/store/cart.store";
 import { useAuthStore } from "@/store/auth.store";
+import { verifyCoupon } from "@/lib/appwrite";
 
 const DELIVERY_FEE = 100.0;
 
@@ -26,12 +27,53 @@ export default function CartPage() {
     const authLoading = useAuthStore((state) => state.loading);
     const hydrated = useAuthStore((state) => state.hydrated);
 
+    const [couponCode, setCouponCode] = useState("");
+    const [couponMessage, setCouponMessage] = useState("");
+    const [couponDiscount, setCouponDiscount] = useState(0);
+    const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+    const [checkingCoupon, setCheckingCoupon] = useState(false);
+
     const [loading, setLoading] = useState(false);
     const lockRef = useRef(false);
 
     const subtotal = totalPrice;
-    const deliveryFee = items.length > 0 ? DELIVERY_FEE : 0;
-    const finalTotal = subtotal + deliveryFee;
+    const deliveryFee = DELIVERY_FEE;
+    const finalTotal = Math.max(0, subtotal + deliveryFee - couponDiscount);
+
+    const handleApplyCoupon = async () => {
+        try {
+            setCheckingCoupon(true);
+            setCouponMessage("");
+
+            const result = await verifyCoupon({
+                code: couponCode,
+                subtotal,
+            });
+
+            setCouponMessage(result.message);
+
+            if (result.valid) {
+                setAppliedCoupon(result.coupon);
+                setCouponDiscount(result.discount);
+            } else {
+                setAppliedCoupon(null);
+                setCouponDiscount(0);
+            }
+        } catch (error: any) {
+            setAppliedCoupon(null);
+            setCouponDiscount(0);
+            setCouponMessage(error?.message || "Could not verify coupon.");
+        } finally {
+            setCheckingCoupon(false);
+        }
+    };
+
+    const handleRemoveCoupon = () => {
+        setCouponCode("");
+        setCouponMessage("");
+        setCouponDiscount(0);
+        setAppliedCoupon(null);
+    };
 
     const handlePayNow = async () => {
         if (loading || lockRef.current) return;
@@ -67,6 +109,8 @@ export default function CartPage() {
                     items,
                     subtotal,
                     deliveryFee,
+                    couponCode: appliedCoupon?.code ?? null,
+                    couponDiscount,
                 }),
             });
 
@@ -95,10 +139,10 @@ export default function CartPage() {
         <main className="min-h-screen bg-white">
             <Navbar />
 
-            <section className="relative overflow-hidden bg-zinc-950 px-5 py-14 text-white">
+            <section className="relative w-full overflow-hidden bg-zinc-950 py-10 text-white sm:py-12 lg:py-14">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(111,194,118,0.35),transparent_35%)]" />
 
-                <div className="relative mx-auto max-w-7xl">
+                <div className="site-container relative">
                     <p className="text-sm font-black uppercase tracking-[0.25em] text-[#6FC276]">
                         Allwear Hub Checkout
                     </p>
@@ -114,7 +158,7 @@ export default function CartPage() {
                 </div>
             </section>
 
-            <section className="mx-auto max-w-7xl px-5 py-10">
+            <section className="site-container py-10">
                 <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <p className="text-sm font-black uppercase tracking-[0.2em] text-[#6FC276]">
@@ -161,11 +205,13 @@ export default function CartPage() {
                         </Link>
                     </div>
                 ) : (
-                    <div className="grid gap-8 lg:grid-cols-[1fr_390px]">
+                    <div className="grid gap-8 lg:grid-cols-[1fr_430px]">
                         <div className="space-y-4">
                             {items.map((item) => (
                                 <div
-                                    key={`${item.productId}-${item.size ?? "default"}`}
+                                    key={`${item.productId}-${
+                                        item.size ?? "default"
+                                    }`}
                                     className="grid gap-4 rounded-[2rem] border border-zinc-100 bg-white p-4 shadow-sm transition hover:shadow-md sm:grid-cols-[140px_1fr]"
                                 >
                                     <div className="flex aspect-square w-full items-center justify-center rounded-[1.5rem] bg-zinc-50 p-4 sm:h-36 sm:w-36">
@@ -185,21 +231,26 @@ export default function CartPage() {
                                                     </p>
 
                                                     <h3 className="mt-1 line-clamp-2 text-lg font-black text-zinc-950">
-                                                        {item.stockSnapshot.name}
+                                                        {
+                                                            item.stockSnapshot
+                                                                .name
+                                                        }
                                                     </h3>
                                                 </div>
 
                                                 <p className="shrink-0 text-lg font-black text-zinc-950">
                                                     R
                                                     {Number(
-                                                        item.stockSnapshot.price || 0
+                                                        item.stockSnapshot
+                                                            .price || 0
                                                     ).toFixed(2)}
                                                 </p>
                                             </div>
 
                                             <div className="mt-4 flex flex-wrap gap-2">
                                                 <span className="rounded-full bg-zinc-100 px-4 py-2 text-xs font-black text-zinc-600">
-                                                    Size: {item.size ?? "default"}
+                                                    Size:{" "}
+                                                    {item.size ?? "default"}
                                                 </span>
 
                                                 <span className="rounded-full bg-zinc-100 px-4 py-2 text-xs font-black text-zinc-600">
@@ -271,7 +322,63 @@ export default function CartPage() {
                                 Order total
                             </h2>
 
-                            <div className="mt-6 space-y-4 rounded-[1.5rem] bg-white p-5 ring-1 ring-zinc-100">
+                            <div className="mt-6 rounded-[1.5rem] bg-white p-5 ring-1 ring-zinc-100">
+                                <h3 className="text-lg font-black text-zinc-950">
+                                    Coupon Code
+                                </h3>
+
+                                <div className="mt-4 flex flex-col gap-3">
+                                    <input
+                                        value={couponCode}
+                                        onChange={(e) => {
+                                            setCouponCode(
+                                                e.target.value.toUpperCase()
+                                            );
+                                            setCouponMessage("");
+                                        }}
+                                        placeholder="Enter coupon code"
+                                        className="min-h-12 rounded-2xl border border-zinc-200 px-4 text-sm font-bold uppercase text-zinc-950 outline-none placeholder:text-zinc-400"
+                                    />
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={handleApplyCoupon}
+                                            disabled={
+                                                checkingCoupon || !couponCode
+                                            }
+                                            className="rounded-2xl bg-zinc-950 px-5 py-3 text-sm font-black uppercase tracking-wide text-white transition hover:bg-[#6FC276] disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            {checkingCoupon
+                                                ? "Checking..."
+                                                : "Apply"}
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={handleRemoveCoupon}
+                                            disabled={!appliedCoupon}
+                                            className="rounded-2xl bg-zinc-100 px-5 py-3 text-sm font-black uppercase tracking-wide text-zinc-700 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {couponMessage ? (
+                                    <p
+                                        className={`mt-3 text-sm font-bold ${
+                                            appliedCoupon
+                                                ? "text-[#6FC276]"
+                                                : "text-red-500"
+                                        }`}
+                                    >
+                                        {couponMessage}
+                                    </p>
+                                ) : null}
+                            </div>
+
+                            <div className="mt-5 space-y-4 rounded-[1.5rem] bg-white p-5 ring-1 ring-zinc-100">
                                 <div className="flex justify-between text-sm">
                                     <span className="text-zinc-500">
                                         Items ({totalItems})
@@ -290,6 +397,20 @@ export default function CartPage() {
                                     </span>
                                 </div>
 
+                                {couponDiscount > 0 ? (
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-zinc-500">
+                                            Coupon{" "}
+                                            {appliedCoupon?.code
+                                                ? `(${appliedCoupon.code})`
+                                                : ""}
+                                        </span>
+                                        <span className="font-black text-[#6FC276]">
+                                            -R{couponDiscount.toFixed(2)}
+                                        </span>
+                                    </div>
+                                ) : null}
+
                                 <div className="border-t border-zinc-200 pt-4">
                                     <div className="flex justify-between text-lg">
                                         <span className="font-black text-zinc-950">
@@ -302,9 +423,18 @@ export default function CartPage() {
                                 </div>
                             </div>
 
+                            <button
+                                type="button"
+                                onClick={handlePayNow}
+                                disabled={loading}
+                                className="mt-6 flex w-full items-center justify-center rounded-full bg-[#6FC276] px-6 py-4 font-black text-white transition hover:bg-zinc-950 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {loading ? "Processing..." : "Pay Now"}
+                            </button>
+
                             <Link
                                 href="/checkout"
-                                className="mt-6 flex w-full items-center justify-center rounded-full bg-[#6FC276] px-6 py-4 font-black text-white transition hover:bg-zinc-950"
+                                className="mt-3 flex w-full items-center justify-center rounded-full bg-zinc-950 px-6 py-4 font-black text-white transition hover:bg-[#6FC276]"
                             >
                                 Continue to Delivery
                             </Link>

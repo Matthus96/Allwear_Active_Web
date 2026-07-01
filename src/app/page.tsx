@@ -61,35 +61,35 @@ export default function HomePage() {
             <Navbar />
 
             {/* HERO */}
-            <section className="relative overflow-hidden bg-zinc-950">
+            <section className="relative w-full overflow-hidden bg-zinc-950">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(111,194,118,0.35),transparent_35%)]" />
 
-                <div className="relative mx-auto grid min-h-[760px] max-w-7xl items-center gap-12 px-6 py-20 lg:grid-cols-2">
+                <div className="site-container relative grid min-h-[720px] items-center gap-12 py-14 sm:py-16 lg:grid-cols-2 lg:py-20">
                     <div>
                         <Link href="/" className="inline-flex items-center">
                             <img
                                 src="/images/Logo.png"
                                 alt="Allwear Logo"
-                                className="h-auto w-[180px] max-w-[65vw] object-contain sm:w-[240px] lg:w-[320px]"
+                                className="h-auto w-[150px] max-w-[60vw] object-contain sm:w-[200px] lg:w-[260px]"
                             />
                         </Link>
 
-                        <p className="mt-10 text-sm font-black uppercase tracking-[0.3em] text-[#6FC276]">
+                        <p className="mt-8 text-sm font-black uppercase tracking-[0.3em] text-[#6FC276]">
                             Introducing Allwear Hub
                         </p>
 
-                        <h1 className="mt-4 max-w-3xl text-5xl font-black leading-[0.95] tracking-tight text-white md:text-8xl">
+                        <h1 className="mt-4 max-w-5xl text-5xl font-black leading-[0.95] tracking-tight text-white md:text-7xl xl:text-8xl">
                             One platform for every Allwear product.
                         </h1>
 
-                        <p className="mt-8 max-w-xl text-lg leading-8 text-zinc-300">
+                        <p className="mt-6 max-w-3xl text-base leading-8 text-zinc-300 md:text-lg">
                             Browse Allwear Active, event collections and future
                             product divisions in one place. Built for shopping,
                             product discovery, quoting and a better customer
                             experience.
                         </p>
 
-                        <div className="mt-10 flex flex-wrap gap-4">
+                        <div className="mt-8 flex flex-wrap gap-4">
                             <Link
                                 href="/shop"
                                 className="rounded-full bg-[#6FC276] px-8 py-4 text-sm font-black uppercase tracking-wide text-white transition hover:bg-white hover:text-zinc-950"
@@ -107,25 +107,25 @@ export default function HomePage() {
                     </div>
 
                     <div className="relative">
-                        <div className="aspect-[4/5] rounded-[3rem] bg-white/10 p-8 backdrop-blur">
+                        <div className="aspect-[12/16] overflow-hidden rounded-[3rem] bg-white/10 p-5 backdrop-blur sm:p-6 lg:p-8">
                             <div className="relative flex h-full items-center justify-center overflow-hidden rounded-[2rem] bg-white">
                                 <Image
                                     src="/images/new-drop.png"
                                     alt="Allwear Hub Featured Drop"
                                     fill
-                                    sizes="(max-width: 768px) 100vw, 50vw"
+                                    sizes="(max-width: 768px) 100vw, 55vw"
                                     className="object-cover"
                                     priority
                                 />
 
                                 <div className="absolute inset-0 bg-black/30" />
 
-                                <div className="absolute bottom-8 left-8 right-8 text-center">
+                                <div className="absolute bottom-6 left-6 right-6 text-center sm:bottom-8 sm:left-8 sm:right-8">
                                     <p className="text-sm font-black uppercase tracking-[0.25em] text-[#6FC276]">
                                         Featured Drop
                                     </p>
 
-                                    <h2 className="mt-4 text-5xl font-black text-white">
+                                    <h2 className="mt-4 text-3xl font-black text-white sm:text-4xl lg:text-5xl">
                                         Activewear Now.
                                         <br />
                                         More Divisions Next.
@@ -139,7 +139,7 @@ export default function HomePage() {
 
             {/* PLATFORM FEATURES */}
             <section className="border-b border-zinc-100 bg-white">
-                <div className="mx-auto grid max-w-7xl gap-6 px-6 py-10 md:grid-cols-4">
+                <div className="site-container grid gap-6 py-10 md:grid-cols-4">
                     <div>
                         <h3 className="font-black text-zinc-950">
                             One Product Hub
@@ -183,8 +183,8 @@ export default function HomePage() {
 
             {/* SHOPPING ENTRY */}
             <section className="bg-white">
-                <div className="mx-auto max-w-7xl px-6 py-16">
-                    <div className="rounded-[3rem] bg-zinc-100 p-6 md:p-10">
+                <div className="site-container py-16">
+                    <div className="rounded-[3rem] bg-zinc-100 p-5 md:p-10">
                         <div className="mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
                             <div>
                                 <p className="text-sm font-black uppercase tracking-[0.25em] text-[#6FC276]">
@@ -195,7 +195,7 @@ export default function HomePage() {
                                     What are you looking for?
                                 </h2>
 
-                                <p className="mt-4 max-w-2xl text-zinc-600">
+                                <p className="mt-4 max-w-3xl text-zinc-600">
                                     Search collections, browse product ranges or jump
                                     straight into the Allwear shop.
                                 </p>
@@ -305,18 +305,19 @@ export default function HomePage() {
                 </div>
             </section>
 
-
             {/* HUB DIVISIONS */}
-            <section id="divisions" className="mx-auto max-w-7xl px-6 py-20">
+            <section id="divisions" className="site-container py-20">
                 <div className="mb-10 flex items-end justify-between gap-6">
                     <div>
                         <p className="text-sm font-black uppercase tracking-[0.25em] text-[#6FC276]">
                             Shop by division
                         </p>
+
                         <h2 className="mt-3 text-4xl font-black tracking-tight text-zinc-950 md:text-5xl">
                             Allwear in one place.
                         </h2>
-                        <p className="mt-4 max-w-2xl text-zinc-600">
+
+                        <p className="mt-4 max-w-3xl text-zinc-600">
                             Start with the current collections, then expand the
                             same platform into schoolwear, workwear, corporate
                             apparel and fashion basics.
@@ -336,7 +337,7 @@ export default function HomePage() {
                         <Link
                             href={getCategoryHref(card.categoryName)}
                             key={card.title}
-                            className="group relative min-h-[420px] overflow-hidden rounded-[2rem] bg-zinc-100 p-8"
+                            className="group relative min-h-[520px] overflow-hidden rounded-[2rem] bg-zinc-100 p-8"
                         >
                             <Image
                                 src={card.image}
@@ -372,8 +373,8 @@ export default function HomePage() {
 
             {/* FUTURE DIVISIONS */}
             <section className="bg-zinc-100">
-                <div className="mx-auto max-w-7xl px-6 py-20">
-                    <div className="mb-10 max-w-3xl">
+                <div className="site-container py-20">
+                    <div className="mb-10 max-w-5xl">
                         <p className="text-sm font-black uppercase tracking-[0.25em] text-[#6FC276]">
                             Coming to the Hub
                         </p>
@@ -383,7 +384,7 @@ export default function HomePage() {
                             storefront.
                         </h2>
 
-                        <p className="mt-5 text-zinc-600">
+                        <p className="mt-5 max-w-4xl text-zinc-600">
                             The current Allwear Active site can grow into a
                             Bash-style product platform for every Allwear
                             division, without losing the shop and checkout
@@ -417,13 +418,13 @@ export default function HomePage() {
             </section>
 
             {/* CREDIBILITY */}
-            <section className="mx-auto max-w-7xl px-6 py-20">
+            <section className="site-container py-20">
                 <div className="rounded-[3rem] bg-zinc-950 p-8 text-white md:p-14">
                     <p className="text-sm font-black uppercase tracking-[0.25em] text-[#6FC276]">
                         More than activewear
                     </p>
 
-                    <h2 className="mt-4 max-w-4xl text-4xl font-black tracking-tight md:text-6xl">
+                    <h2 className="mt-4 max-w-6xl text-4xl font-black tracking-tight md:text-6xl">
                         A modern digital sales platform for Allwear’s full
                         product capability.
                     </h2>
@@ -448,12 +449,12 @@ export default function HomePage() {
 
             {/* CTA */}
             <section className="bg-zinc-100">
-                <div className="mx-auto flex max-w-7xl flex-col items-center px-6 py-20 text-center">
+                <div className="site-container flex flex-col items-center py-20 text-center">
                     <p className="text-sm font-black uppercase tracking-[0.25em] text-[#6FC276]">
                         Ready to shop?
                     </p>
 
-                    <h2 className="mt-4 max-w-3xl text-4xl font-black tracking-tight text-zinc-950 md:text-6xl">
+                    <h2 className="mt-4 max-w-5xl text-4xl font-black tracking-tight text-zinc-950 md:text-6xl">
                         Explore the first version of Allwear Hub.
                     </h2>
 

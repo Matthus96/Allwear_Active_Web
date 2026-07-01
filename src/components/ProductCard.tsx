@@ -23,10 +23,6 @@ export default function ProductCard({ item }: { item: Product }) {
                         className="h-full w-full object-contain transition duration-500 group-hover:scale-105"
                     />
 
-                    <div className="absolute left-2.5 top-2.5 rounded-full bg-white/95 px-2.5 py-1.5 text-[9px] font-black uppercase tracking-wide text-zinc-950 shadow-sm sm:text-[10px]">
-                        Allwear Hub
-                    </div>
-
                     <div className="absolute bottom-2.5 right-2.5 rounded-full bg-[#6FC276] px-2.5 py-1.5 text-[9px] font-black uppercase tracking-wide text-white shadow-sm sm:text-[10px]">
                         View
                     </div>
@@ -53,7 +49,7 @@ export default function ProductCard({ item }: { item: Product }) {
     </Link>
 
     {item.description ? (
-        <p className="mt-1 line-clamp-1 text-[11px] leading-3 text-zinc-500">
+        <p className="mt-1 line-clamp-1 text-[11px] leading-5 text-zinc-500">
             {item.description}
         </p>
     ) : (
@@ -63,20 +59,13 @@ export default function ProductCard({ item }: { item: Product }) {
     )}
 
     <div className="mt-2">
-        <p className="text-[9px] font-bold uppercase leading-none tracking-wide text-zinc-400">
+        <p className="text-[12px] font-bold uppercase leading-none tracking-wide text-green-600">
             From
         </p>
 
         <p className="mt-0.5 text-lg font-black leading-none text-zinc-950">
             R{Number(item.price || 0).toFixed(2)}
         </p>
-
-        <Link
-            href={`/product/${item.$id}`}
-            className="mt-2 flex w-full items-center justify-center rounded-full bg-zinc-950 px-4 py-2.5 text-xs font-black uppercase tracking-wide text-white transition hover:bg-[#6FC276] sm:text-sm"
-        >
-            View Product
-        </Link>
     </div>
 </div>
         </article>

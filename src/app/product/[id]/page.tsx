@@ -277,35 +277,6 @@ export default function ProductPage() {
                             modelCloseupImage={product.modelCloseupImage}
                         />
                     </div>
-
-                    <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                        <div className="rounded-[1.5rem] bg-zinc-50 p-4 ring-1 ring-zinc-100">
-                            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#6FC276]">
-                                Delivery
-                            </p>
-                            <p className="mt-2 text-sm font-bold text-zinc-700">
-                                Flat R100.00 delivery
-                            </p>
-                        </div>
-
-                        <div className="rounded-[1.5rem] bg-zinc-50 p-4 ring-1 ring-zinc-100">
-                            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#6FC276]">
-                                Stock
-                            </p>
-                            <p className="mt-2 text-sm font-bold text-zinc-700">
-                                Size-based availability
-                            </p>
-                        </div>
-
-                        <div className="rounded-[1.5rem] bg-zinc-50 p-4 ring-1 ring-zinc-100">
-                            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#6FC276]">
-                                Fit
-                            </p>
-                            <p className="mt-2 text-sm font-bold text-zinc-700">
-                                Measurement guide included
-                            </p>
-                        </div>
-                    </div>
                 </div>
 
                 <div className="min-w-0 overflow-hidden">

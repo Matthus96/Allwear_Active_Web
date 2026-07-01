@@ -25,47 +25,12 @@ export default function ProductImageCarousel({
 }: ProductImageCarouselProps) {
     const images = useMemo(() => {
         return [
-            modelFrontImage
-                ? {
-                      label: "Model Front",
-                      url: modelFrontImage,
-                  }
-                : null,
-
-            modelSideImage
-                ? {
-                      label: "Model Side",
-                      url: modelSideImage,
-                  }
-                : null,
-
-            modelBackImage
-                ? {
-                      label: "Model Back",
-                      url: modelBackImage,
-                  }
-                : null,
-
-            modelCloseupImage
-                ? {
-                      label: "Close-up",
-                      url: modelCloseupImage,
-                  }
-                : null,
-
-            frontImage
-                ? {
-                      label: "Product Front",
-                      url: frontImage,
-                  }
-                : null,
-
-            backImage
-                ? {
-                      label: "Product Back",
-                      url: backImage,
-                  }
-                : null,
+            modelFrontImage ? { label: "Model Front", url: modelFrontImage } : null,
+            modelSideImage ? { label: "Model Side", url: modelSideImage } : null,
+            modelBackImage ? { label: "Model Back", url: modelBackImage } : null,
+            modelCloseupImage ? { label: "Close-up", url: modelCloseupImage } : null,
+            frontImage ? { label: "Product Front", url: frontImage } : null,
+            backImage ? { label: "Product Back", url: backImage } : null,
         ].filter(Boolean) as { label: string; url: string }[];
     }, [
         modelFrontImage,
@@ -104,11 +69,11 @@ export default function ProductImageCarousel({
 
     return (
         <div className="w-full min-w-0 space-y-4 sm:space-y-5">
-            <div className="relative h-[430px] w-full overflow-hidden rounded-[2rem] bg-zinc-50 sm:h-[560px] lg:h-[620px]">
+            <div className="relative flex h-[460px] w-full items-center justify-center overflow-hidden rounded-[2rem] bg-white p-4 ring-1 ring-zinc-100 sm:h-[620px] sm:p-6 lg:h-[720px]">
                 <img
                     src={activeImage.url}
                     alt={`${productName} ${activeImage.label}`}
-                    className="h-full w-full object-cover object-top transition duration-300"
+                    className="block max-h-full max-w-full object-contain object-center transition duration-300"
                 />
 
                 {images.length > 1 && (
@@ -148,16 +113,16 @@ export default function ProductImageCarousel({
                                 type="button"
                                 key={`${image.label}-${image.url}`}
                                 onClick={() => setActiveIndex(index)}
-                                className={`flex h-24 w-20 shrink-0 snap-start items-center justify-center overflow-hidden rounded-xl border transition sm:h-28 sm:w-24 sm:rounded-2xl ${
+                                className={`flex h-24 w-20 shrink-0 snap-start items-center justify-center overflow-hidden rounded-xl border bg-white p-1 transition sm:h-28 sm:w-24 sm:rounded-2xl ${
                                     active
-                                        ? "border-[#6FC276] bg-[#6FC276]/10"
-                                        : "border-zinc-100 bg-zinc-50 hover:border-zinc-300"
+                                        ? "border-[#6FC276]"
+                                        : "border-zinc-100 hover:border-zinc-300"
                                 }`}
                             >
                                 <img
                                     src={image.url}
                                     alt={`${productName} ${image.label} thumbnail`}
-                                    className="h-full w-full object-cover object-top"
+                                    className="block max-h-full max-w-full object-contain object-center"
                                 />
                             </button>
                         );

@@ -22,20 +22,55 @@ import {
     type Product,
 } from "@/lib/appwrite";
 
+type ProductWithFilters = Product & {
+    sizes?: string[] | { label?: string; name?: string; size?: string }[];
+    size?: string;
+    style?: string;
+    styles?: string[] | { label?: string; name?: string; style?: string }[];
+};
+
 function ShopContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
 
     const category = searchParams.get("category") || "";
     const query = searchParams.get("query") || "";
+    const selectedSize = searchParams.get("size") || "";
+    const selectedStyle = searchParams.get("style") || "";
 
     const [searchValue, setSearchValue] = useState(query);
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
+    const [activeBannerIndex, setActiveBannerIndex] = useState(0);
 
     const { data: categories = [] } = useAppwrite<Category[], any>({
         fn: getCategories,
     });
+
+    const bannerSlides = [
+        {
+            eyebrow: "Limited Stock!!",
+            title: "Shop the current Allwear Active drop before sizes sell out.",
+        },
+        {
+            eyebrow: "New Zealand Tour",
+            title: "Get ready for the New Zealand Tour!! Supporter pieces are landing.",
+        },
+        {
+            eyebrow: "Flat Delivery",
+            title: "Online orders include a flat local delivery fee of R100.00.",
+        },
+    ];
+
+    useEffect(() => {
+        const timer = window.setInterval(() => {
+            setActiveBannerIndex((current) =>
+                current === bannerSlides.length - 1 ? 0 : current + 1
+            );
+        }, 3500);
+
+        return () => window.clearInterval(timer);
+    }, [bannerSlides.length]);
 
     useEffect(() => {
         let cancelled = false;
@@ -48,6 +83,12 @@ function ShopContent() {
                     category,
                     query,
                 });
+
+                const debugProducts = data as ProductWithFilters[];
+
+                console.log("SHOP PRODUCT DATA:", debugProducts);
+                console.log("FIRST PRODUCT:", debugProducts?.[0]);
+                console.log("FIRST PRODUCT SIZES:", debugProducts?.[0]?.sizes);
 
                 if (!cancelled) {
                     setProducts(data);
@@ -88,12 +129,102 @@ function ShopContent() {
         return selected?.name ?? "Selected Category";
     }, [activeCategory, categories]);
 
+    const getProductSizes = (item: ProductWithFilters) => {
+        if (Array.isArray(item.sizes)) {
+            return item.sizes
+                .map((size) => {
+                    if (typeof size === "string") return size;
+                    return size.label || size.size || "";
+                })
+                .filter(Boolean);
+        }
+
+        if (item.size) return [item.size];
+
+        return [];
+    };
+
+    const getProductStyles = (item: ProductWithFilters) => {
+        if (Array.isArray(item.styles)) {
+            return item.styles
+                .map((style) => {
+                    if (typeof style === "string") return style;
+                    return style.label || style.name || style.style || "";
+                })
+                .filter(Boolean);
+        }
+
+        if (item.style) return [item.style];
+
+        return [];
+    };
+
+    const sizeOptions = useMemo(() => {
+        const sizes = products.flatMap((item) =>
+            getProductSizes(item as ProductWithFilters)
+        );
+
+        return Array.from(new Set(sizes)).sort((a, b) =>
+            a.localeCompare(b, undefined, { numeric: true })
+        );
+    }, [products]);
+
+    const styleOptions = useMemo(() => {
+        const styles = products.flatMap((item) =>
+            getProductStyles(item as ProductWithFilters)
+        );
+
+        return Array.from(new Set(styles)).sort((a, b) =>
+            a.localeCompare(b, undefined, { numeric: true })
+        );
+    }, [products]);
+
+    const getAvailableProductSizes = (item: ProductWithFilters) => {
+    if (!Array.isArray(item.sizes)) return [];
+
+    return item.sizes
+        .map((size) => {
+            if (typeof size === "string") return size;
+
+            return size.label || size.size || "";
+        })
+        .filter(Boolean);
+};
+
+    const filteredProducts = useMemo(() => {
+        return products.filter((item) => {
+            const product = item as ProductWithFilters;
+
+            const matchesSize = selectedSize
+                ? getProductSizes(product).some(
+                      (size) =>
+                          size.toLowerCase().trim() ===
+                          selectedSize.toLowerCase().trim()
+                  )
+                : true;
+
+            const matchesStyle = selectedStyle
+                ? getProductStyles(product).some(
+                      (style) =>
+                          style.toLowerCase().trim() ===
+                          selectedStyle.toLowerCase().trim()
+                  )
+                : true;
+
+            return matchesSize && matchesStyle;
+        });
+    }, [products, selectedSize, selectedStyle]);
+
     const updateShopRoute = ({
         categoryId,
         searchQuery,
+        size,
+        style,
     }: {
         categoryId?: string;
         searchQuery?: string;
+        size?: string;
+        style?: string;
     }) => {
         const params = new URLSearchParams();
 
@@ -105,6 +236,14 @@ function ShopContent() {
             params.set("category", categoryId);
         }
 
+        if (size) {
+            params.set("size", size);
+        }
+
+        if (style) {
+            params.set("style", style);
+        }
+
         router.push(`/shop${params.toString() ? `?${params}` : ""}`, {
             scroll: false,
         });
@@ -114,6 +253,26 @@ function ShopContent() {
         updateShopRoute({
             categoryId,
             searchQuery: query,
+            size: selectedSize,
+            style: selectedStyle,
+        });
+    };
+
+    const handleSizeClick = (size?: string) => {
+        updateShopRoute({
+            categoryId: activeCategory,
+            searchQuery: query,
+            size,
+            style: selectedStyle,
+        });
+    };
+
+    const handleStyleClick = (style?: string) => {
+        updateShopRoute({
+            categoryId: activeCategory,
+            searchQuery: query,
+            size: selectedSize,
+            style,
         });
     };
 
@@ -123,6 +282,8 @@ function ShopContent() {
         updateShopRoute({
             categoryId: activeCategory,
             searchQuery: searchValue.trim(),
+            size: selectedSize,
+            style: selectedStyle,
         });
     };
 
@@ -134,87 +295,49 @@ function ShopContent() {
         });
     };
 
-    const productCount = products.length;
+    const productCount = filteredProducts.length;
+    const activeBanner = bannerSlides[activeBannerIndex];
 
     return (
         <main className="min-h-screen overflow-x-hidden bg-white">
             <Navbar />
 
-        <section className="relative overflow-hidden bg-zinc-950 px-4 py-14 text-white sm:px-6 sm:py-16 lg:px-8 lg:py-20">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(111,194,118,0.35),transparent_35%)]" />
+            <section className="relative w-full overflow-hidden bg-zinc-950 py-5 text-white sm:py-6 lg:py-7">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(111,194,118,0.35),transparent_35%)]" />
 
-            <div className="relative mx-auto w-full max-w-7xl">
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-[#6FC276] sm:text-sm">
-                    Browsing: {selectedCategoryName}
-                </p>
+                <div className="site-container relative">
+                    <div className="flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-white/5 p-5 backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:p-6">
+                        <div className="min-w-0">
+                            <p className="text-xs font-black uppercase tracking-[0.25em] text-[#6FC276] sm:text-sm">
+                                {activeBanner.eyebrow}
+                            </p>
 
-                <h1 className="mt-4 max-w-4xl text-4xl font-black leading-tight tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
-                    Shop every available Allwear product in one place.
-                </h1>
+                            <h1 className="mt-2 text-2xl font-black leading-tight tracking-tight text-white sm:text-3xl lg:text-4xl">
+                                {activeBanner.title}
+                            </h1>
+                        </div>
 
-                <p className="mt-5 max-w-2xl text-sm leading-7 text-zinc-300 sm:text-base md:text-lg md:leading-8">
-                    Browse activewear, event collections and future Allwear product
-                    divisions through one growing digital storefront. Search, filter,
-                    add to cart and checkout with flat-rate local delivery.
-                </p>
-
-                <div className="mt-8 flex flex-wrap gap-3">
-                    {[
-                        "Activewear",
-                        "Event Collections",
-                        "Supporter Wear",
-                        "New Arrivals",
-                        "All Products",
-                    ].map((item) => (
-                        <span
-                            key={item}
-                            className="rounded-full bg-white/10 px-5 py-3 text-xs font-black uppercase tracking-wide text-white ring-1 ring-white/10"
-                        >
-                            {item}
-                        </span>
-                    ))}
-                </div>
-            </div>
-        </section>
-
-            <section className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
-                <div className="mb-8 grid gap-4 md:grid-cols-3">
-                    <div className="rounded-[2rem] bg-zinc-50 p-5 ring-1 ring-zinc-100">
-                        <p className="text-sm font-black uppercase tracking-[0.2em] text-[#6FC276]">
-                            Browse
-                        </p>
-                        <h3 className="mt-2 text-xl font-black text-zinc-950">
-                            Product catalogue
-                        </h3>
-                        <p className="mt-2 text-sm leading-6 text-zinc-500">
-                            Explore available Allwear products and collections.
-                        </p>
-                    </div>
-
-                    <div className="rounded-[2rem] bg-zinc-50 p-5 ring-1 ring-zinc-100">
-                        <p className="text-sm font-black uppercase tracking-[0.2em] text-[#6FC276]">
-                            Filter
-                        </p>
-                        <h3 className="mt-2 text-xl font-black text-zinc-950">
-                            Find your range
-                        </h3>
-                        <p className="mt-2 text-sm leading-6 text-zinc-500">
-                            Use categories and search to narrow products quickly.
-                        </p>
-                    </div>
-
-                    <div className="rounded-[2rem] bg-zinc-50 p-5 ring-1 ring-zinc-100">
-                        <p className="text-sm font-black uppercase tracking-[0.2em] text-[#6FC276]">
-                            Checkout
-                        </p>
-                        <h3 className="mt-2 text-xl font-black text-zinc-950">
-                            Cart ready
-                        </h3>
-                        <p className="mt-2 text-sm leading-6 text-zinc-500">
-                            Add items to cart and complete your online order.
-                        </p>
+                        <div className="flex shrink-0 items-center gap-2">
+                            {bannerSlides.map((slide, index) => (
+                                <button
+                                    key={slide.eyebrow}
+                                    type="button"
+                                    onClick={() => setActiveBannerIndex(index)}
+                                    className={`h-2.5 rounded-full transition ${
+                                        index === activeBannerIndex
+                                            ? "w-8 bg-[#6FC276]"
+                                            : "w-2.5 bg-white/30 hover:bg-white/60"
+                                    }`}
+                                    aria-label={`Show ${slide.eyebrow}`}
+                                />
+                            ))}
+                        </div>
                     </div>
                 </div>
+            </section>
+
+            <section className="site-container py-8 sm:py-10 lg:py-12">
+
                 <div className="mb-8 flex flex-col gap-5 border-b border-zinc-100 pb-8 lg:mb-10 lg:flex-row lg:items-end lg:justify-between">
                     <div className="min-w-0">
                         <p className="text-xs font-black uppercase tracking-[0.2em] text-[#6FC276] sm:text-sm">
@@ -250,14 +373,17 @@ function ShopContent() {
                     </form>
                 </div>
 
-                <div className="grid gap-8 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-10">
+                <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)] xl:gap-8">
                     <aside className="min-w-0 rounded-3xl border border-zinc-100 bg-zinc-50 p-4 sm:p-5 lg:sticky lg:top-28 lg:h-fit">
                         <div className="mb-5 flex items-center justify-between gap-4">
                             <h3 className="text-lg font-black text-zinc-950">
-                                Categories
+                                Filters
                             </h3>
 
-                            {(activeCategory || query) && (
+                            {(activeCategory ||
+                                query ||
+                                selectedSize ||
+                                selectedStyle) && (
                                 <button
                                     type="button"
                                     onClick={handleClearFilters}
@@ -268,40 +394,136 @@ function ShopContent() {
                             )}
                         </div>
 
-                        <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0 lg:pb-0">
+                        <div>
+                            <p className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-zinc-400">
+                                Category
+                            </p>
+
+                            <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0 lg:pb-0">
+                                <button
+                                    type="button"
+                                    onClick={() => handleCategoryClick()}
+                                    className={`shrink-0 whitespace-nowrap rounded-full px-5 py-3 text-left text-sm font-black transition lg:w-full ${
+                                        !activeCategory
+                                            ? "bg-[#6FC276] text-white"
+                                            : "bg-white text-zinc-800 hover:bg-zinc-100"
+                                    }`}
+                                >
+                                    All Products
+                                </button>
+
+                                {(categories ?? []).map((cat) => {
+                                    const isActive =
+                                        String(cat.$id) ===
+                                        String(activeCategory);
+
+                                    return (
+                                        <button
+                                            key={cat.$id}
+                                            type="button"
+                                            onClick={() =>
+                                                handleCategoryClick(
+                                                    String(cat.$id)
+                                                )
+                                            }
+                                            className={`shrink-0 whitespace-nowrap rounded-full px-5 py-3 text-left text-sm font-black transition lg:w-full ${
+                                                isActive
+                                                    ? "bg-[#6FC276] text-white"
+                                                    : "bg-white text-zinc-800 hover:bg-zinc-100"
+                                            }`}
+                                        >
+                                            {cat.name}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                       <div className="mt-6 border-t border-zinc-200 pt-5">
                             <button
                                 type="button"
-                                onClick={() => handleCategoryClick()}
-                                className={`shrink-0 whitespace-nowrap rounded-full px-5 py-3 text-left text-sm font-black transition lg:w-full ${
-                                    !activeCategory
-                                        ? "bg-[#6FC276] text-white"
-                                        : "bg-white text-zinc-800 hover:bg-zinc-100"
-                                }`}
+                                className="mb-4 flex w-full items-center justify-between text-left"
                             >
-                                All Products
+                                <span className="text-sm font-black uppercase tracking-wide text-zinc-950">
+                                    Size
+                                </span>
+
+                                <span className="text-sm font-black text-zinc-950">⌃</span>
                             </button>
 
-                            {(categories ?? []).map((cat) => {
-                                const isActive =
-                                    String(cat.$id) === String(activeCategory);
-
-                                return (
+                            <div className="max-h-[240px] overflow-y-auto pr-2">
+                                <div className="grid grid-cols-3 gap-3">
                                     <button
-                                        key={cat.$id}
                                         type="button"
-                                        onClick={() =>
-                                            handleCategoryClick(String(cat.$id))
-                                        }
-                                        className={`shrink-0 whitespace-nowrap rounded-full px-5 py-3 text-left text-sm font-black transition lg:w-full ${
-                                            isActive
-                                                ? "bg-[#6FC276] text-white"
-                                                : "bg-white text-zinc-800 hover:bg-zinc-100"
+                                        onClick={() => handleSizeClick()}
+                                        className={`flex h-10 items-center justify-center rounded-full border text-sm font-medium transition ${
+                                            !selectedSize
+                                                ? "border-zinc-950 bg-zinc-950 text-white"
+                                                : "border-zinc-300 bg-white text-zinc-950 hover:border-zinc-950"
                                         }`}
                                     >
-                                        {cat.name}
+                                        All
                                     </button>
-                                );
-                            })}
+
+                                    {sizeOptions.map((size) => (
+                                        <button
+                                            key={size}
+                                            type="button"
+                                            onClick={() => handleSizeClick(size)}
+                                            className={`flex h-10 items-center justify-center  rounded-full border text-sm font-medium transition ${
+                                                selectedSize === size
+                                                    ? "border-zinc-950 bg-zinc-950 text-white"
+                                                    : "border-zinc-300 bg-white text-zinc-950 hover:border-zinc-950"
+                                            }`}
+                                        >
+                                            {size}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-6">
+                            <p className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-zinc-400">
+                                Style
+                            </p>
+
+                            <div className="flex flex-wrap gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => handleStyleClick()}
+                                    className={`rounded-full px-4 py-2 text-xs font-black transition ${
+                                        !selectedStyle
+                                            ? "bg-zinc-950 text-white"
+                                            : "bg-white text-zinc-700 hover:bg-zinc-100"
+                                    }`}
+                                >
+                                    All Styles
+                                </button>
+
+                                {styleOptions.length > 0 ? (
+                                    styleOptions.map((style) => (
+                                        <button
+                                            key={style}
+                                            type="button"
+                                            onClick={() =>
+                                                handleStyleClick(style)
+                                            }
+                                            className={`rounded-full px-4 py-2 text-xs font-black transition ${
+                                                selectedStyle === style
+                                                    ? "bg-[#6FC276] text-white"
+                                                    : "bg-white text-zinc-700 hover:bg-zinc-100"
+                                            }`}
+                                        >
+                                            {style}
+                                        </button>
+                                    ))
+                                ) : (
+                                    <p className="text-sm text-zinc-400">
+                                        No style data yet.
+                                    </p>
+                                )}
+                            </div>
                         </div>
 
                         <div className="mt-6 rounded-2xl bg-white p-5">
@@ -320,25 +542,49 @@ function ShopContent() {
                     </aside>
 
                     <div className="min-w-0">
-                        {query && (
+                        {(query || selectedSize || selectedStyle) && (
                             <div className="mb-6 rounded-2xl bg-zinc-50 px-5 py-4 text-sm text-zinc-600">
-                                Showing results for{" "}
-                                <span className="font-black text-zinc-950">
-                                    “{query}”
-                                </span>
+                                Showing filtered results
+                                {query ? (
+                                    <>
+                                        {" "}
+                                        for{" "}
+                                        <span className="font-black text-zinc-950">
+                                            “{query}”
+                                        </span>
+                                    </>
+                                ) : null}
+                                {selectedSize ? (
+                                    <>
+                                        {" "}
+                                        in size{" "}
+                                        <span className="font-black text-zinc-950">
+                                            {selectedSize}
+                                        </span>
+                                    </>
+                                ) : null}
+                                {selectedStyle ? (
+                                    <>
+                                        {" "}
+                                        with style{" "}
+                                        <span className="font-black text-zinc-950">
+                                            {selectedStyle}
+                                        </span>
+                                    </>
+                                ) : null}
                             </div>
                         )}
 
                         {loading && products.length === 0 ? (
-                            <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
-                                {Array.from({ length: 8 }).map((_, index) => (
+                            <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-[1800px]:grid-cols-6">
+                                {Array.from({ length: 12 }).map((_, index) => (
                                     <div
                                         key={index}
                                         className="overflow-hidden rounded-3xl border border-zinc-100 bg-white"
                                     >
                                         <div className="aspect-[4/5] animate-pulse bg-zinc-100" />
 
-                                        <div className="space-y-3 p-3 sm:p-5">
+                                        <div className="space-y-3 p-3 sm:p-4">
                                             <div className="h-4 w-3/4 animate-pulse rounded bg-zinc-100" />
                                             <div className="h-4 w-1/2 animate-pulse rounded bg-zinc-100" />
                                             <div className="h-11 animate-pulse rounded-full bg-zinc-100" />
@@ -347,12 +593,9 @@ function ShopContent() {
                                 ))}
                             </div>
                         ) : productCount > 0 ? (
-                            <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
-                                {products.map((item) => (
-                                    <ProductCard
-                                        key={item.$id}
-                                        item={item}
-                                    />
+                            <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-[1800px]:grid-cols-6">
+                                {filteredProducts.map((item) => (
+                                    <ProductCard key={item.$id} item={item} />
                                 ))}
                             </div>
                         ) : (
@@ -366,9 +609,9 @@ function ShopContent() {
                                 </h3>
 
                                 <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-zinc-500">
-                                    Try another category or search term. You can
-                                    also clear all filters and browse the full
-                                    collection.
+                                    Try another category, size, style or search
+                                    term. You can also clear all filters and
+                                    browse the full collection.
                                 </p>
 
                                 <button

@@ -15,6 +15,13 @@ export type Category = Models.Document & {
     name: string;
 };
 
+export type ProductSize = {
+    label: string;
+    size: string;
+    quantity: number;
+    available: boolean;
+};
+
 export type Product = Models.Document & {
     name: string;
     price: number;
@@ -22,6 +29,11 @@ export type Product = Models.Document & {
     description?: string;
     backImage?: string;
     categories?: string | string[];
+
+    range?: string;
+    stock?: number;
+
+    sizes?: ProductSize[];
 
     modelFrontImage?: string;
     modelSideImage?: string;
@@ -36,6 +48,25 @@ export type ProductInventory = Models.Document & {
     size: string;
     quantity: number;
     available?: boolean;
+};
+
+export type Coupon = Models.Document & {
+    code: string;
+    type: "percentage" | "fixed";
+    value: number;
+    active: boolean;
+    expiresAt?: string;
+    minimumSpend?: number;
+    usageLimit?: number;
+    usedCount?: number;
+    newUsersOnly?: boolean;
+};
+
+export type VerifyCouponResult = {
+    valid: boolean;
+    message: string;
+    coupon?: Coupon;
+    discount: number;
 };
 
 export const appwriteConfig = {
@@ -53,6 +84,7 @@ export const appwriteConfig = {
     ordersCollectionId: "orders",
     addressesCollectionId: "addresses",
     productInventoryCollectionId: "product-inventory",
+    couponsCollectionId: "coupons",
 
     distributorCollectionId: "distributor",
 
@@ -60,7 +92,7 @@ export const appwriteConfig = {
     defaultDistributorName: "Allwear HQ",
 
     deleteAccountFunctionId:
-    process.env.NEXT_PUBLIC_DELETE_ACCOUNT_FUNCTION_ID || "",
+        process.env.NEXT_PUBLIC_DELETE_ACCOUNT_FUNCTION_ID || "",
 };
 
 export const client = new Client()
@@ -88,6 +120,53 @@ const getInitialsAvatar = (name?: string) => {
     return String(avatars.getInitials(safeName));
 };
 
+const isInventoryAvailable = (item: ProductInventory) => {
+    const quantity = Number(item.quantity || 0);
+    const availableValue = item.available;
+
+    const explicitlyUnavailable =
+        availableValue === false ||
+        String(availableValue).toLowerCase() === "false" ||
+        String(availableValue).toLowerCase() === "no" ||
+        String(availableValue).toLowerCase() === "0";
+
+    return quantity > 0 && !explicitlyUnavailable;
+};
+
+const attachInventoryToProduct = async (
+    product: Product
+): Promise<Product> => {
+    try {
+        const inventory = await getProductInventory(product.$id);
+
+        const sizes = inventory
+            .filter((item) => isInventoryAvailable(item))
+            .map((item) => ({
+                label: item.size,
+                size: item.size,
+                quantity: Number(item.quantity || 0),
+                available: true,
+            }))
+            .sort((a, b) =>
+                a.size.localeCompare(b.size, undefined, {
+                    numeric: true,
+                })
+            );
+
+        return {
+            ...product,
+            sizes,
+        };
+    } catch (error) {
+        console.log("ATTACH INVENTORY ERROR:", error);
+
+        return {
+            ...product,
+            sizes: [],
+        };
+    }
+};
+
 export const getMenuById = async ({
     id,
 }: {
@@ -100,7 +179,9 @@ export const getMenuById = async ({
             id
         );
 
-        return res as unknown as Product;
+        const product = res as unknown as Product;
+
+        return await attachInventoryToProduct(product);
     } catch (e: any) {
         console.log("GET MENU BY ID ERROR:", e);
         throw new Error(e?.message || "Could not fetch menu item.");
@@ -131,7 +212,13 @@ export const getMenu = async ({
             queries
         );
 
-        return res.documents as unknown as Product[];
+        const products = res.documents as unknown as Product[];
+
+        const productsWithInventory = await Promise.all(
+            products.map((product) => attachInventoryToProduct(product))
+        );
+
+        return productsWithInventory;
     } catch (e: any) {
         console.log("GET MENU ERROR:", e);
         throw new Error(e?.message || "Could not fetch products.");
@@ -166,6 +253,157 @@ export const getProductInventory = async (
     } catch (e: any) {
         console.log("GET PRODUCT INVENTORY ERROR:", e);
         throw new Error(e?.message || "Could not fetch product inventory.");
+    }
+};
+
+export const verifyCoupon = async ({
+    code,
+    subtotal,
+    accountId,
+    userId,
+    email,
+}: {
+    code: string;
+    subtotal: number;
+    accountId?: string;
+    userId?: string;
+    email?: string;
+}): Promise<VerifyCouponResult> => {
+    try {
+        const cleanCode = code.trim().toUpperCase();
+
+        if (!cleanCode) {
+            return {
+                valid: false,
+                message: "Enter a coupon code.",
+                discount: 0,
+            };
+        }
+
+        const res = await databases.listDocuments(
+            appwriteConfig.databaseId,
+            appwriteConfig.couponsCollectionId,
+            [Query.equal("code", cleanCode)]
+        );
+
+        const coupon = res.documents[0] as unknown as Coupon | undefined;
+
+        if (!coupon) {
+            return {
+                valid: false,
+                message: "Coupon code not found.",
+                discount: 0,
+            };
+        }
+
+        if (!coupon.active) {
+            return {
+                valid: false,
+                message: "This coupon is no longer active.",
+                discount: 0,
+            };
+        }
+
+        if (coupon.expiresAt) {
+            const expiryTime = new Date(coupon.expiresAt).getTime();
+
+            if (expiryTime < Date.now()) {
+                return {
+                    valid: false,
+                    message: "This coupon has expired.",
+                    discount: 0,
+                };
+            }
+        }
+
+        const minimumSpend = Number(coupon.minimumSpend || 0);
+
+        if (minimumSpend > 0 && subtotal < minimumSpend) {
+            return {
+                valid: false,
+                message: `Spend at least R${minimumSpend.toFixed(
+                    2
+                )} to use this coupon.`,
+                discount: 0,
+            };
+        }
+
+        const usageLimit = Number(coupon.usageLimit || 0);
+        const usedCount = Number(coupon.usedCount || 0);
+
+        if (usageLimit > 0 && usedCount >= usageLimit) {
+            return {
+                valid: false,
+                message: "This coupon has reached its usage limit.",
+                discount: 0,
+            };
+        }
+
+        if (coupon.newUsersOnly) {
+            if (!accountId && !userId && !email) {
+                return {
+                    valid: false,
+                    message: "Please log in to use this coupon.",
+                    discount: 0,
+                };
+            }
+
+            const previousOrders = await getUserOrders({
+                accountId,
+                userId,
+                email,
+            });
+
+            if (previousOrders.length > 0) {
+                return {
+                    valid: false,
+                    message: "This coupon is only available to new customers.",
+                    discount: 0,
+                };
+            }
+        }
+
+        const couponType = String(coupon.type || "").trim().toLowerCase();
+        const couponValue = Number(coupon.value || 0);
+
+        let discount = 0;
+
+        if (couponType === "percentage") {
+            discount = subtotal * (couponValue / 100);
+        } else if (couponType === "fixed") {
+            discount = couponValue;
+        } else {
+            return {
+                valid: false,
+                message: "Coupon type is invalid. Use fixed or percentage.",
+                discount: 0,
+            };
+        }
+
+        discount = Math.min(discount, subtotal);
+
+        if (discount <= 0) {
+            return {
+                valid: false,
+                message: "This coupon has no discount value.",
+                discount: 0,
+            };
+        }
+
+        return {
+            valid: true,
+            message: "Coupon applied successfully.",
+            coupon,
+            discount,
+        };
+    } catch (e: any) {
+        console.log("VERIFY COUPON ERROR:", e);
+
+        return {
+            valid: false,
+            message: e?.message || "Could not verify coupon.",
+            discount: 0,
+        };
     }
 };
 
@@ -359,6 +597,9 @@ export type CreateOrderParams = {
 
     distributorId?: string;
     distributorName?: string;
+
+    couponCode?: string | null;
+    couponDiscount?: number;
 };
 
 export const createOrder = async (order: CreateOrderParams) => {
@@ -390,6 +631,9 @@ export const createOrder = async (order: CreateOrderParams) => {
                 distributorName:
                     order.distributorName ??
                     appwriteConfig.defaultDistributorName,
+
+                couponCode: order.couponCode ?? null,
+                couponDiscount: order.couponDiscount ?? 0,
             }
         );
     } catch (e: any) {

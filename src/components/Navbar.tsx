@@ -18,37 +18,40 @@ export default function Navbar() {
     ];
 
     return (
-        <header className="sticky top-0 z-50 border-b border-zinc-100 bg-white/90 backdrop-blur-md">
-            <div className="mx-auto flex h-14 w-full max-w-7xl items-center justify-between gap-3 px-4 sm:h-16 sm:px-6 lg:px-8">
+        <header className="sticky top-0 z-50 w-full border-b border-zinc-100 bg-white/95 backdrop-blur-md">
+            <div className="site-container flex h-20 items-center justify-between">
                 <Link href="/" className="flex min-w-0 items-center">
                     <img
                         src="/images/Logo.png"
                         alt="Allwear Logo"
-                        className="h-auto w-[100px] object-contain sm:w-[140px] md:w-[190px]"
+                        className="h-auto w-[110px] object-contain sm:w-[145px] md:w-[170px]"
                     />
                 </Link>
 
-                <nav className="hidden items-center gap-8 text-sm font-bold text-zinc-700 lg:flex">
+                <nav className="hidden items-center gap-10 text-sm font-bold text-zinc-700 lg:flex">
                     {navLinks.map((link) => (
                         <Link
                             key={link.label}
                             href={link.href}
-                            className="hover:text-[#6FC276]"
+                            className="transition hover:text-[#6FC276]"
                         >
                             {link.label}
                         </Link>
                     ))}
 
                     {user ? (
-                            <button
-                                type="button"
-                                onClick={logout}
-                                className="font-bold hover:text-[#6FC276]"
-                            >
-                                Logout
-                            </button>
+                        <button
+                            type="button"
+                            onClick={logout}
+                            className="font-bold transition hover:text-[#6FC276]"
+                        >
+                            Logout
+                        </button>
                     ) : (
-                        <Link href="/login" className="hover:text-[#6FC276]">
+                        <Link
+                            href="/login"
+                            className="transition hover:text-[#6FC276]"
+                        >
                             Login
                         </Link>
                     )}
@@ -57,7 +60,7 @@ export default function Navbar() {
                 <div className="flex shrink-0 items-center gap-2 sm:gap-3">
                     <Link
                         href="/shop"
-                        className="hidden rounded-full bg-zinc-950 px-5 py-3 text-sm font-black text-white transition hover:bg-[#6FC276] md:inline-flex"
+                        className="hidden rounded-full bg-zinc-950 px-6 py-3 text-sm font-black text-white transition hover:bg-[#6FC276] md:inline-flex"
                     >
                         Shop Now
                     </Link>
@@ -76,49 +79,51 @@ export default function Navbar() {
             </div>
 
             {menuOpen ? (
-                <div className="absolute left-0 top-full z-50 w-full border-t border-zinc-100 bg-white px-4 py-4 shadow-xl lg:hidden">
-                    <div className="space-y-2">
-                        {navLinks.map((link) => (
-                            <Link
-                                key={link.label}
-                                href={link.href}
-                                onClick={() => setMenuOpen(false)}
-                                className="block rounded-2xl px-4 py-3 text-sm font-black text-zinc-950 hover:bg-zinc-50"
-                            >
-                                {link.label}
-                            </Link>
-                        ))}
-
-                        {user ? (
-                            <>
+                <div className="absolute left-0 top-full z-50 w-full border-t border-zinc-100 bg-white shadow-xl lg:hidden">
+                    <div className="site-container py-4">
+                        <div className="space-y-2">
+                            {navLinks.map((link) => (
                                 <Link
-                                    href="/orders"
+                                    key={link.label}
+                                    href={link.href}
                                     onClick={() => setMenuOpen(false)}
                                     className="block rounded-2xl px-4 py-3 text-sm font-black text-zinc-950 hover:bg-zinc-50"
                                 >
-                                    Orders
+                                    {link.label}
                                 </Link>
+                            ))}
 
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setMenuOpen(false);
-                                        logout();
-                                    }}
-                                    className="block w-full rounded-2xl px-4 py-3 text-left text-sm font-black text-red-600 hover:bg-red-50"
+                            {user ? (
+                                <>
+                                    <Link
+                                        href="/orders"
+                                        onClick={() => setMenuOpen(false)}
+                                        className="block rounded-2xl px-4 py-3 text-sm font-black text-zinc-950 hover:bg-zinc-50"
+                                    >
+                                        Orders
+                                    </Link>
+
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setMenuOpen(false);
+                                            logout();
+                                        }}
+                                        className="block w-full rounded-2xl px-4 py-3 text-left text-sm font-black text-red-600 hover:bg-red-50"
+                                    >
+                                        Logout
+                                    </button>
+                                </>
+                            ) : (
+                                <Link
+                                    href="/login"
+                                    onClick={() => setMenuOpen(false)}
+                                    className="block rounded-2xl px-4 py-3 text-sm font-black text-zinc-950 hover:bg-zinc-50"
                                 >
-                                    Logout
-                                </button>
-                            </>
-                        ) : (
-                            <Link
-                                href="/login"
-                                onClick={() => setMenuOpen(false)}
-                                className="block rounded-2xl px-4 py-3 text-sm font-black text-zinc-950 hover:bg-zinc-50"
-                            >
-                                Login
-                            </Link>
-                        )}
+                                    Login
+                                </Link>
+                            )}
+                        </div>
                     </div>
                 </div>
             ) : null}
