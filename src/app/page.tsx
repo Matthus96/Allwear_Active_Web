@@ -162,7 +162,7 @@ export default function HomePage() {
 
                     <div>
                         <h3 className="font-black text-zinc-950">
-                            Local Delivery
+                            Delivery
                         </h3>
                         <p className="mt-2 text-sm leading-6 text-zinc-500">
                             Flat delivery fee of R100.00 on online orders.
