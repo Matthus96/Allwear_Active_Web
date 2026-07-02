@@ -9,7 +9,7 @@ const slides = [
         eyebrow: "Allwear Active Presents",
         title: "MOVE WITH PURPOSE",
         subtitle: "Performance apparel made for training, movement, and everyday wear.",
-        image: "/images/hero-active.png",
+        image: "/images/active.png",
         primaryLabel: "Shop",
         primaryHref: "/shop",
         secondaryLabel: "Explore",
@@ -59,14 +59,14 @@ export default function HeroCarousel() {
                     sizes="100vw"
                 />
 
-                <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/10 to-black/65" />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/35 to-black/65" />
 
                 <div className="absolute inset-x-0 bottom-16 z-10 mx-auto flex max-w-5xl flex-col items-center px-6 text-center text-white">
-                    <p className="mb-3 text-sm font-bold tracking-tight">
+                    <p className="mb-3 text-xl font-bold tracking-tight">
                         {activeSlide.eyebrow}
                     </p>
 
-                    <h1 className="max-w-4xl text-5xl font-black uppercase leading-none tracking-tight sm:text-7xl lg:text-8xl">
+                    <h1 className="max-w-4xl text-3xl font-black uppercase leading-none tracking-tight sm:text-6xl lg:text-6xl">
                         {activeSlide.title}
                     </h1>
 
