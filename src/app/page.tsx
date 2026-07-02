@@ -6,6 +6,8 @@ import Footer from "@/components/Footer";
 import Image from "next/image";
 import useAppwrite from "@/hooks/useAppwrite";
 import { getCategories, type Category } from "@/lib/appwrite";
+import InfoTicker from "@/components/InfoTicker";
+import HeroCarousel from "@/components/HeroCarousel";
 
 export default function HomePage() {
     const { data: categoriesData } = useAppwrite<Category[], any>({
@@ -60,125 +62,11 @@ export default function HomePage() {
         <main className="min-h-screen bg-white">
             <Navbar />
 
-            {/* HERO */}
-            <section className="relative w-full overflow-hidden bg-zinc-950">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(111,194,118,0.35),transparent_35%)]" />
+            <HeroCarousel />
 
-                <div className="site-container relative grid min-h-[720px] items-center gap-12 py-14 sm:py-16 lg:grid-cols-2 lg:py-20">
-                    <div>
-                        <Link href="/" className="inline-flex items-center">
-                            <img
-                                src="/images/Logo.png"
-                                alt="Allwear Logo"
-                                className="h-auto w-[150px] max-w-[60vw] object-contain sm:w-[200px] lg:w-[260px]"
-                            />
-                        </Link>
-
-                        <p className="mt-8 text-sm font-black uppercase tracking-[0.3em] text-[#6FC276]">
-                            Introducing Allwear Hub
-                        </p>
-
-                        <h1 className="mt-4 max-w-5xl text-5xl font-black leading-[0.95] tracking-tight text-white md:text-7xl xl:text-8xl">
-                            One platform for every Allwear product.
-                        </h1>
-
-                        <p className="mt-6 max-w-3xl text-base leading-8 text-zinc-300 md:text-lg">
-                            Browse Allwear Active, event collections and future
-                            product divisions in one place. Built for shopping,
-                            product discovery, quoting and a better customer
-                            experience.
-                        </p>
-
-                        <div className="mt-8 flex flex-wrap gap-4">
-                            <Link
-                                href="/shop"
-                                className="rounded-full bg-[#6FC276] px-8 py-4 text-sm font-black uppercase tracking-wide text-white transition hover:bg-white hover:text-zinc-950"
-                            >
-                                Explore Products
-                            </Link>
-
-                            <Link
-                                href="#divisions"
-                                className="rounded-full border border-white/20 px-8 py-4 text-sm font-black uppercase tracking-wide text-white transition hover:bg-white hover:text-zinc-950"
-                            >
-                                View Divisions
-                            </Link>
-                        </div>
-                    </div>
-
-                    <div className="relative">
-                        <div className="aspect-[12/16] overflow-hidden rounded-[3rem] bg-white/10 p-5 backdrop-blur sm:p-6 lg:p-8">
-                            <div className="relative flex h-full items-center justify-center overflow-hidden rounded-[2rem] bg-white">
-                                <Image
-                                    src="/images/new-drop.png"
-                                    alt="Allwear Hub Featured Drop"
-                                    fill
-                                    sizes="(max-width: 768px) 100vw, 55vw"
-                                    className="object-cover"
-                                    priority
-                                />
-
-                                <div className="absolute inset-0 bg-black/30" />
-
-                                <div className="absolute bottom-6 left-6 right-6 text-center sm:bottom-8 sm:left-8 sm:right-8">
-                                    <p className="text-sm font-black uppercase tracking-[0.25em] text-[#6FC276]">
-                                        Featured Drop
-                                    </p>
-
-                                    <h2 className="mt-4 text-3xl font-black text-white sm:text-4xl lg:text-5xl">
-                                        Activewear Now.
-                                        <br />
-                                        More Divisions Next.
-                                    </h2>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {/* PLATFORM FEATURES */}
-            <section className="border-b border-zinc-100 bg-white">
-                <div className="site-container grid gap-6 py-10 md:grid-cols-4">
-                    <div>
-                        <h3 className="font-black text-zinc-950">
-                            One Product Hub
-                        </h3>
-                        <p className="mt-2 text-sm leading-6 text-zinc-500">
-                            A single destination for Allwear products and
-                            collections.
-                        </p>
-                    </div>
-
-                    <div>
-                        <h3 className="font-black text-zinc-950">
-                            Online Shopping
-                        </h3>
-                        <p className="mt-2 text-sm leading-6 text-zinc-500">
-                            Add items to cart and checkout through the existing
-                            shop flow.
-                        </p>
-                    </div>
-
-                    <div>
-                        <h3 className="font-black text-zinc-950">
-                            Delivery
-                        </h3>
-                        <p className="mt-2 text-sm leading-6 text-zinc-500">
-                            Flat delivery fee of R100.00 on online orders.
-                        </p>
-                    </div>
-
-                    <div>
-                        <h3 className="font-black text-zinc-950">
-                            Built to Expand
-                        </h3>
-                        <p className="mt-2 text-sm leading-6 text-zinc-500">
-                            Activewear today. School, work, corporate and
-                            fashion ranges next.
-                        </p>
-                    </div>
-                </div>
+            {/* INFO TICKER */}
+            <section className="bg-black">
+                <InfoTicker />
             </section>
 
             {/* SHOPPING ENTRY */}
@@ -187,10 +75,6 @@ export default function HomePage() {
                     <div className="rounded-[3rem] bg-zinc-100 p-5 md:p-10">
                         <div className="mb-8 flex flex-col justify-between gap-6 md:flex-row md:items-end">
                             <div>
-                                <p className="text-sm font-black uppercase tracking-[0.25em] text-[#6FC276]">
-                                    Start shopping
-                                </p>
-
                                 <h2 className="mt-3 text-4xl font-black tracking-tight text-zinc-950 md:text-5xl">
                                     What are you looking for?
                                 </h2>

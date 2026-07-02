@@ -13,12 +13,12 @@ export default function Navbar() {
     const navLinks = [
         { label: "Home", href: "/" },
         { label: "Shop", href: "/shop" },
-        { label: "Business", href: "/business" },
+        { label: "Sale", href: "/business" },
         { label: "Account", href: "/account" },
     ];
 
     return (
-        <header className="sticky top-0 z-50 w-full border-b border-zinc-100 bg-white/95 backdrop-blur-md">
+        <header className="sticky top-0 z-50 w-full border-b border-zinc-200 bg-white/95 backdrop-blur-md">
             <div className="site-container flex h-20 items-center justify-between">
                 <Link href="/" className="flex min-w-0 items-center">
                     <img

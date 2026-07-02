@@ -75,3 +75,41 @@ canvas {
     padding-right: 1rem;
   }
 }
+
+@keyframes ticker-scroll {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.ticker-track {
+  display: flex;
+  width: max-content;
+  animation: ticker-scroll 28s linear infinite;
+  will-change: transform;
+}
+
+.ticker-track:hover {
+  animation-play-state: paused;
+}
+
+.ticker-item {
+  flex: 0 0 auto;
+  padding: 14px 32px;
+  color: #6bc574;
+  font-size: clamp(0.75rem, 1vw, 0.95rem);
+  font-weight: 900;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ticker-item::after {
+  content: "•";
+  margin-left: 32px;
+  color: #ffffff;
+}
