@@ -5,6 +5,7 @@ import {
     Suspense,
     useEffect,
     useMemo,
+    useRef,
     useState,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -43,6 +44,9 @@ function ShopContent() {
     const [loading, setLoading] = useState(true);
     const [activeBannerIndex, setActiveBannerIndex] = useState(0);
 
+    const filterAnchorRef = useRef<HTMLDivElement | null>(null);
+    const [isFilterFloating, setIsFilterFloating] = useState(false);
+
     const { data: categories = [] } = useAppwrite<Category[], any>({
         fn: getCategories,
     });
@@ -71,6 +75,27 @@ function ShopContent() {
 
         return () => window.clearInterval(timer);
     }, [bannerSlides.length]);
+
+                    useEffect(() => {
+                const handleScroll = () => {
+                    if (!filterAnchorRef.current) return;
+
+                    const anchorTop =
+                        filterAnchorRef.current.getBoundingClientRect().top;
+
+                    setIsFilterFloating(anchorTop <= 88);
+                };
+
+                handleScroll();
+
+                window.addEventListener("scroll", handleScroll, { passive: true });
+                window.addEventListener("resize", handleScroll);
+
+                return () => {
+                    window.removeEventListener("scroll", handleScroll);
+                    window.removeEventListener("resize", handleScroll);
+                };
+            }, []);
 
     useEffect(() => {
         let cancelled = false;
@@ -178,18 +203,6 @@ function ShopContent() {
             a.localeCompare(b, undefined, { numeric: true })
         );
     }, [products]);
-
-    const getAvailableProductSizes = (item: ProductWithFilters) => {
-    if (!Array.isArray(item.sizes)) return [];
-
-    return item.sizes
-        .map((size) => {
-            if (typeof size === "string") return size;
-
-            return size.label || size.size || "";
-        })
-        .filter(Boolean);
-};
 
     const filteredProducts = useMemo(() => {
         return products.filter((item) => {
@@ -299,34 +312,34 @@ function ShopContent() {
     const activeBanner = bannerSlides[activeBannerIndex];
 
     return (
-        <main className="min-h-screen overflow-x-hidden bg-white">
+        <main className="min-h-screen bg-white">
             <Navbar />
 
-            <section className="relative w-full overflow-hidden bg-zinc-950 py-5 text-white sm:py-6 lg:py-7">
+            <section className="relative w-full overflow-hidden bg-zinc-950 py-[clamp(1rem,3vw,1.75rem)] text-white">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(111,194,118,0.35),transparent_35%)]" />
 
                 <div className="site-container relative">
-                    <div className="flex flex-col gap-4 rounded-[2rem] border border-white/10 bg-white/5 p-5 backdrop-blur sm:flex-row sm:items-center sm:justify-between sm:p-6">
+                    <div className="flex flex-col gap-[clamp(0.75rem,2vw,1rem)] rounded-[clamp(1.25rem,3vw,2rem)] border border-white/10 bg-white/5 p-[clamp(1rem,3vw,1.5rem)] backdrop-blur sm:flex-row sm:items-center sm:justify-between">
                         <div className="min-w-0">
-                            <p className="text-xs font-black uppercase tracking-[0.25em] text-[#6FC276] sm:text-sm">
+                            <p className="text-[clamp(0.65rem,1.5vw,0.875rem)] font-black uppercase tracking-[0.25em] text-[#6FC276]">
                                 {activeBanner.eyebrow}
                             </p>
 
-                            <h1 className="mt-2 text-2xl font-black leading-tight tracking-tight text-white sm:text-3xl lg:text-4xl">
+                            <h1 className="mt-[clamp(0.4rem,1vw,0.5rem)] text-[clamp(1.25rem,4vw,2.25rem)] font-black leading-tight tracking-tight text-white">
                                 {activeBanner.title}
                             </h1>
                         </div>
 
-                        <div className="flex shrink-0 items-center gap-2">
+                        <div className="flex shrink-0 items-center gap-[clamp(0.35rem,1vw,0.5rem)]">
                             {bannerSlides.map((slide, index) => (
                                 <button
                                     key={slide.eyebrow}
                                     type="button"
                                     onClick={() => setActiveBannerIndex(index)}
-                                    className={`h-2.5 rounded-full transition ${
+                                    className={`h-[clamp(0.45rem,1vw,0.625rem)] rounded-full transition ${
                                         index === activeBannerIndex
-                                            ? "w-8 bg-[#6FC276]"
-                                            : "w-2.5 bg-white/30 hover:bg-white/60"
+                                            ? "w-[clamp(1.3rem,4vw,2rem)] bg-[#6FC276]"
+                                            : "w-[clamp(0.45rem,1vw,0.625rem)] bg-white/30 hover:bg-white/60"
                                     }`}
                                     aria-label={`Show ${slide.eyebrow}`}
                                 />
@@ -336,15 +349,14 @@ function ShopContent() {
                 </div>
             </section>
 
-            <section className="site-container py-8 sm:py-10 lg:py-12">
-
-                <div className="mb-8 flex flex-col gap-5 border-b border-zinc-100 pb-8 lg:mb-10 lg:flex-row lg:items-end lg:justify-between">
+            <section className="site-container py-[clamp(1.5rem,5vw,3rem)]">
+                <div className="mb-[clamp(1rem,4vw,2.5rem)] flex flex-col gap-[clamp(1rem,3vw,1.25rem)] border-b border-zinc-100 pb-[clamp(1rem,4vw,2rem)] lg:flex-row lg:items-end lg:justify-between">
                     <div className="min-w-0">
-                        <p className="text-xs font-black uppercase tracking-[0.2em] text-[#6FC276] sm:text-sm">
+                        <p className="text-[clamp(0.65rem,1.5vw,0.875rem)] font-black uppercase tracking-[0.2em] text-[#6FC276]">
                             {selectedCategoryName}
                         </p>
 
-                        <h2 className="mt-2 text-2xl font-black tracking-tight text-zinc-950 sm:text-3xl md:text-4xl">
+                        <h2 className="mt-[clamp(0.4rem,1vw,0.5rem)] text-[clamp(1.35rem,4.5vw,2.25rem)] font-black leading-tight tracking-tight text-zinc-950">
                             {loading && products.length === 0
                                 ? "Loading products..."
                                 : `${productCount} product${
@@ -355,28 +367,38 @@ function ShopContent() {
 
                     <form
                         onSubmit={handleSearchSubmit}
-                        className="flex w-full flex-col overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm sm:max-w-xl sm:flex-row sm:rounded-full"
+                        className="flex w-full flex-col overflow-hidden rounded-[clamp(1.25rem,3vw,1.75rem)] border border-zinc-200 bg-white shadow-sm sm:max-w-xl sm:flex-row sm:rounded-full"
                     >
                         <input
                             value={searchValue}
                             onChange={(e) => setSearchValue(e.target.value)}
                             placeholder="Search products..."
-                            className="min-w-0 flex-1 px-5 py-4 text-sm font-medium text-zinc-900 outline-none placeholder:text-zinc-400"
+                            className="min-w-0 flex-1 px-[clamp(1rem,3vw,1.25rem)] py-[clamp(0.85rem,2vw,1rem)] text-[clamp(0.8rem,1.7vw,0.875rem)] font-medium text-zinc-900 outline-none placeholder:text-zinc-400"
                         />
 
                         <button
                             type="submit"
-                            className="shrink-0 bg-zinc-950 px-6 py-4 text-sm font-black text-white transition hover:bg-zinc-800"
+                            className="shrink-0 bg-zinc-950 px-[clamp(1.25rem,3vw,1.5rem)] py-[clamp(0.85rem,2vw,1rem)] text-[clamp(0.75rem,1.6vw,0.875rem)] font-black text-white transition hover:bg-zinc-800"
                         >
                             Search
                         </button>
                     </form>
                 </div>
 
-                <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)] xl:gap-8">
-                    <aside className="min-w-0 rounded-3xl border border-zinc-100 bg-zinc-50 p-4 sm:p-5 lg:sticky lg:top-28 lg:h-fit">
-                        <div className="mb-5 flex items-center justify-between gap-4">
-                            <h3 className="text-lg font-black text-zinc-950">
+                        <div
+                            ref={filterAnchorRef}
+                            className="grid grid-cols-[clamp(6.5rem,30vw,11rem)_minmax(0,1fr)] gap-[clamp(0.75rem,3vw,1.5rem)] lg:grid-cols-[260px_minmax(0,1fr)] xl:gap-8"
+                        >                    
+                        <div className="min-w-0">
+                        <aside
+                            className={`self-start rounded-[clamp(1rem,3vw,1.75rem)] border border-zinc-100 bg-zinc-50 p-[clamp(0.6rem,2vw,1.25rem)] transition ${
+                                isFilterFloating
+                                    ? "fixed left-[clamp(0.75rem,3vw,2rem)] top-[5.5rem] z-30 w-[clamp(12rem,38vw,15rem)] shadow-xl lg:sticky lg:left-auto lg:top-28 lg:w-full"
+                                    : "relative z-10 w-full"
+                            }`}
+                        >                       
+                        <div className="mb-[clamp(0.75rem,2vw,1.25rem)] flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                            <h3 className="text-[clamp(0.95rem,2.5vw,1.125rem)] font-black text-zinc-950">
                                 Filters
                             </h3>
 
@@ -387,7 +409,7 @@ function ShopContent() {
                                 <button
                                     type="button"
                                     onClick={handleClearFilters}
-                                    className="shrink-0 text-xs font-black uppercase tracking-wide text-[#6FC276]"
+                                    className="w-fit shrink-0 text-[clamp(0.6rem,1.3vw,0.75rem)] font-black uppercase tracking-wide text-[#6FC276]"
                                 >
                                     Clear
                                 </button>
@@ -395,15 +417,15 @@ function ShopContent() {
                         </div>
 
                         <div>
-                            <p className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-zinc-400">
+                            <p className="mb-[clamp(0.45rem,1.5vw,0.75rem)] text-[clamp(0.6rem,1.3vw,0.75rem)] font-black uppercase tracking-[0.16em] text-zinc-400">
                                 Category
                             </p>
 
-                            <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-2 lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0 lg:pb-0">
+                            <div className="flex flex-col gap-[clamp(0.4rem,1.5vw,0.75rem)]">
                                 <button
                                     type="button"
                                     onClick={() => handleCategoryClick()}
-                                    className={`shrink-0 whitespace-nowrap rounded-full px-5 py-3 text-left text-sm font-black transition lg:w-full ${
+                                    className={`w-full rounded-full px-[clamp(0.65rem,2vw,1.25rem)] py-[clamp(0.55rem,1.5vw,0.75rem)] text-left text-[clamp(0.65rem,1.5vw,0.875rem)] font-black leading-tight transition ${
                                         !activeCategory
                                             ? "bg-[#6FC276] text-white"
                                             : "bg-white text-zinc-800 hover:bg-zinc-100"
@@ -426,7 +448,7 @@ function ShopContent() {
                                                     String(cat.$id)
                                                 )
                                             }
-                                            className={`shrink-0 whitespace-nowrap rounded-full px-5 py-3 text-left text-sm font-black transition lg:w-full ${
+                                            className={`w-full rounded-full px-[clamp(0.65rem,2vw,1.25rem)] py-[clamp(0.55rem,1.5vw,0.75rem)] text-left text-[clamp(0.65rem,1.5vw,0.875rem)] font-black leading-tight transition ${
                                                 isActive
                                                     ? "bg-[#6FC276] text-white"
                                                     : "bg-white text-zinc-800 hover:bg-zinc-100"
@@ -439,24 +461,26 @@ function ShopContent() {
                             </div>
                         </div>
 
-                       <div className="mt-6 border-t border-zinc-200 pt-5">
+                        <div className="mt-[clamp(1rem,3vw,1.5rem)] border-t border-zinc-200 pt-[clamp(0.9rem,3vw,1.25rem)]">
                             <button
                                 type="button"
-                                className="mb-4 flex w-full items-center justify-between text-left"
+                                className="mb-[clamp(0.6rem,2vw,1rem)] flex w-full items-center justify-between text-left"
                             >
-                                <span className="text-sm font-black uppercase tracking-wide text-zinc-950">
+                                <span className="text-[clamp(0.7rem,1.6vw,0.875rem)] font-black uppercase tracking-wide text-zinc-950">
                                     Size
                                 </span>
 
-                                <span className="text-sm font-black text-zinc-950">⌃</span>
+                                <span className="text-[clamp(0.7rem,1.6vw,0.875rem)] font-black text-zinc-950">
+                                    ⌃
+                                </span>
                             </button>
 
-                            <div className="max-h-[240px] overflow-y-auto pr-2">
-                                <div className="grid grid-cols-3 gap-3">
+                            <div className="max-h-[240px] overflow-y-auto pr-1">
+                                <div className="grid grid-cols-2 gap-[clamp(0.35rem,1.5vw,0.75rem)] lg:grid-cols-3">
                                     <button
                                         type="button"
                                         onClick={() => handleSizeClick()}
-                                        className={`flex h-10 items-center justify-center rounded-full border text-sm font-medium transition ${
+                                        className={`flex h-[clamp(2rem,5vw,2.5rem)] items-center justify-center rounded-full border text-[clamp(0.65rem,1.5vw,0.875rem)] font-medium transition ${
                                             !selectedSize
                                                 ? "border-zinc-950 bg-zinc-950 text-white"
                                                 : "border-zinc-300 bg-white text-zinc-950 hover:border-zinc-950"
@@ -470,7 +494,7 @@ function ShopContent() {
                                             key={size}
                                             type="button"
                                             onClick={() => handleSizeClick(size)}
-                                            className={`flex h-10 items-center justify-center  rounded-full border text-sm font-medium transition ${
+                                            className={`flex h-[clamp(2rem,5vw,2.5rem)] items-center justify-center rounded-full border text-[clamp(0.65rem,1.5vw,0.875rem)] font-medium transition ${
                                                 selectedSize === size
                                                     ? "border-zinc-950 bg-zinc-950 text-white"
                                                     : "border-zinc-300 bg-white text-zinc-950 hover:border-zinc-950"
@@ -483,16 +507,16 @@ function ShopContent() {
                             </div>
                         </div>
 
-                        <div className="mt-6">
-                            <p className="mb-3 text-xs font-black uppercase tracking-[0.2em] text-zinc-400">
+                        <div className="mt-[clamp(1rem,3vw,1.5rem)]">
+                            <p className="mb-[clamp(0.45rem,1.5vw,0.75rem)] text-[clamp(0.6rem,1.3vw,0.75rem)] font-black uppercase tracking-[0.16em] text-zinc-400">
                                 Style
                             </p>
 
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-col gap-[clamp(0.4rem,1.5vw,0.5rem)] lg:flex-row lg:flex-wrap">
                                 <button
                                     type="button"
                                     onClick={() => handleStyleClick()}
-                                    className={`rounded-full px-4 py-2 text-xs font-black transition ${
+                                    className={`rounded-full px-[clamp(0.65rem,2vw,1rem)] py-[clamp(0.45rem,1.4vw,0.5rem)] text-[clamp(0.6rem,1.3vw,0.75rem)] font-black leading-tight transition ${
                                         !selectedStyle
                                             ? "bg-zinc-950 text-white"
                                             : "bg-white text-zinc-700 hover:bg-zinc-100"
@@ -509,7 +533,7 @@ function ShopContent() {
                                             onClick={() =>
                                                 handleStyleClick(style)
                                             }
-                                            className={`rounded-full px-4 py-2 text-xs font-black transition ${
+                                            className={`rounded-full px-[clamp(0.65rem,2vw,1rem)] py-[clamp(0.45rem,1.4vw,0.5rem)] text-[clamp(0.6rem,1.3vw,0.75rem)] font-black leading-tight transition ${
                                                 selectedStyle === style
                                                     ? "bg-[#6FC276] text-white"
                                                     : "bg-white text-zinc-700 hover:bg-zinc-100"
@@ -519,31 +543,32 @@ function ShopContent() {
                                         </button>
                                     ))
                                 ) : (
-                                    <p className="text-sm text-zinc-400">
+                                    <p className="text-[clamp(0.7rem,1.5vw,0.875rem)] text-zinc-400">
                                         No style data yet.
                                     </p>
                                 )}
                             </div>
                         </div>
 
-                        <div className="mt-6 rounded-2xl bg-white p-5">
-                            <p className="text-sm font-black text-zinc-950">
+                        <div className="mt-[clamp(1rem,3vw,1.5rem)] rounded-[clamp(0.9rem,2vw,1rem)] bg-white p-[clamp(0.75rem,2vw,1.25rem)]">
+                            <p className="text-[clamp(0.75rem,1.7vw,0.875rem)] font-black text-zinc-950">
                                 Delivery
                             </p>
 
-                            <p className="mt-2 text-sm leading-6 text-zinc-500">
-                                Flat delivery fee of{" "}
+                            <p className="mt-[clamp(0.35rem,1vw,0.5rem)] text-[clamp(0.68rem,1.5vw,0.875rem)] leading-5 text-zinc-500">
+                                Flat fee of{" "}
                                 <span className="font-black text-zinc-950">
                                     R100.00
                                 </span>{" "}
-                                added at checkout.
+                                at checkout.
                             </p>
                         </div>
                     </aside>
+                    </div>
 
                     <div className="min-w-0">
                         {(query || selectedSize || selectedStyle) && (
-                            <div className="mb-6 rounded-2xl bg-zinc-50 px-5 py-4 text-sm text-zinc-600">
+                            <div className="mb-[clamp(0.75rem,2vw,1.5rem)] rounded-[clamp(1rem,2vw,1rem)] bg-zinc-50 px-[clamp(0.85rem,2vw,1.25rem)] py-[clamp(0.75rem,2vw,1rem)] text-[clamp(0.75rem,1.7vw,0.875rem)] text-zinc-600">
                                 Showing filtered results
                                 {query ? (
                                     <>
@@ -576,39 +601,39 @@ function ShopContent() {
                         )}
 
                         {loading && products.length === 0 ? (
-                            <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-[1800px]:grid-cols-6">
+                            <div className="grid grid-cols-1 gap-[clamp(0.75rem,2vw,1rem)] min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-[1800px]:grid-cols-6">
                                 {Array.from({ length: 12 }).map((_, index) => (
                                     <div
                                         key={index}
-                                        className="overflow-hidden rounded-3xl border border-zinc-100 bg-white"
+                                        className="overflow-hidden rounded-[clamp(1rem,2.5vw,1.5rem)] border border-zinc-100 bg-white"
                                     >
                                         <div className="aspect-[4/5] animate-pulse bg-zinc-100" />
 
-                                        <div className="space-y-3 p-3 sm:p-4">
+                                        <div className="space-y-3 p-[clamp(0.75rem,2vw,1rem)]">
                                             <div className="h-4 w-3/4 animate-pulse rounded bg-zinc-100" />
                                             <div className="h-4 w-1/2 animate-pulse rounded bg-zinc-100" />
-                                            <div className="h-11 animate-pulse rounded-full bg-zinc-100" />
+                                            <div className="h-10 animate-pulse rounded-full bg-zinc-100" />
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         ) : productCount > 0 ? (
-                            <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-[1800px]:grid-cols-6">
+                            <div className="grid grid-cols-1 gap-[clamp(0.75rem,2vw,1rem)] min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-[1800px]:grid-cols-6">
                                 {filteredProducts.map((item) => (
                                     <ProductCard key={item.$id} item={item} />
                                 ))}
                             </div>
                         ) : (
-                            <div className="rounded-[2rem] border border-zinc-100 bg-zinc-50 px-5 py-16 text-center sm:px-6 sm:py-20">
-                                <p className="text-xs font-black uppercase tracking-[0.2em] text-[#6FC276] sm:text-sm">
+                            <div className="rounded-[clamp(1.25rem,3vw,2rem)] border border-zinc-100 bg-zinc-50 px-[clamp(1rem,3vw,1.5rem)] py-[clamp(3rem,8vw,5rem)] text-center">
+                                <p className="text-[clamp(0.7rem,1.5vw,0.875rem)] font-black uppercase tracking-[0.2em] text-[#6FC276]">
                                     No Results
                                 </p>
 
-                                <h3 className="mt-3 text-2xl font-black text-zinc-950 sm:text-3xl">
+                                <h3 className="mt-[clamp(0.6rem,1.5vw,0.75rem)] text-[clamp(1.5rem,4vw,1.875rem)] font-black text-zinc-950">
                                     No products found
                                 </h3>
 
-                                <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-zinc-500">
+                                <p className="mx-auto mt-[clamp(0.6rem,1.5vw,0.75rem)] max-w-md text-[clamp(0.8rem,1.8vw,0.875rem)] leading-7 text-zinc-500">
                                     Try another category, size, style or search
                                     term. You can also clear all filters and
                                     browse the full collection.
@@ -617,7 +642,7 @@ function ShopContent() {
                                 <button
                                     type="button"
                                     onClick={handleClearFilters}
-                                    className="mt-6 rounded-full bg-zinc-950 px-7 py-4 text-sm font-black text-white"
+                                    className="mt-[clamp(1.25rem,3vw,1.5rem)] rounded-full bg-zinc-950 px-[clamp(1.5rem,3vw,1.75rem)] py-[clamp(0.85rem,2vw,1rem)] text-[clamp(0.75rem,1.6vw,0.875rem)] font-black text-white"
                                 >
                                     Clear Filters
                                 </button>
