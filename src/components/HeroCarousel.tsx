@@ -9,7 +9,7 @@ const slides = [
         eyebrow: "Allwear Active Presents",
         title: "MOVE WITH PURPOSE",
         subtitle: "Performance apparel made for training, movement, and everyday wear.",
-        image: "/images/hero-active.jpg",
+        image: "/images/hero-active.png",
         primaryLabel: "Shop",
         primaryHref: "/shop",
         secondaryLabel: "Explore",
@@ -19,7 +19,7 @@ const slides = [
         eyebrow: "New Collection",
         title: "HORNS OVER HAKA",
         subtitle: "Supporter merch, New Zealand Tour",
-        image: "/images/hero-training.jpg",
+        image: "/images/hero-training.png",
         primaryLabel: "Shop All",
         primaryHref: "/men",
     },
@@ -49,7 +49,7 @@ export default function HeroCarousel() {
 
     return (
         <section className="relative left-1/2 right-1/2 -mx-[50vw] w-screen overflow-hidden bg-black">
-            <div className="relative min-h-[560px] w-full sm:min-h-[640px] lg:min-h-[760px]">
+            <div className="object-cover object-top relative min-h-[560px] w-full sm:min-h-[640px] lg:min-h-[760px]">
                 <Image
                     src={activeSlide.image}
                     alt={activeSlide.title}
