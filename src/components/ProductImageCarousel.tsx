@@ -15,7 +15,6 @@ type ProductImageCarouselProps = {
 };
 
 export default function ProductImageCarousel({
-    productName,
     frontImage,
     backImage,
     modelFrontImage,
@@ -72,7 +71,7 @@ export default function ProductImageCarousel({
             <div className="relative flex h-[460px] w-full items-center justify-center overflow-hidden rounded-[2rem] bg-white p-4 ring-1 ring-zinc-100 sm:h-[620px] sm:p-6 lg:h-[720px]">
                 <img
                     src={activeImage.url}
-                    alt={`${productName} ${activeImage.label}`}
+                    alt={`${activeImage.label}`}
                     className="block max-h-full max-w-full object-contain object-center transition duration-300"
                 />
 
@@ -97,10 +96,6 @@ export default function ProductImageCarousel({
                         </button>
                     </>
                 )}
-
-                <div className="absolute left-3 top-3 rounded-full bg-white/90 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-zinc-950 shadow-sm sm:left-5 sm:top-5 sm:px-4 sm:text-xs">
-                    {activeImage.label}
-                </div>
             </div>
 
             {images.length > 1 && (
@@ -121,7 +116,7 @@ export default function ProductImageCarousel({
                             >
                                 <img
                                     src={image.url}
-                                    alt={`${productName} ${image.label} thumbnail`}
+                                    alt={`${image.label} thumbnail`}
                                     className="block max-h-full max-w-full object-contain object-center"
                                 />
                             </button>
