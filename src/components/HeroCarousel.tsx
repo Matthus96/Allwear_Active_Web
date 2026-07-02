@@ -48,18 +48,19 @@ export default function HeroCarousel() {
     };
 
     return (
-        <section className="relative left-1/2 right-1/2 -mx-[50vw] w-screen overflow-hidden bg-black">
-            <div className="object-cover object-top relative min-h-[560px] w-full sm:min-h-[640px] lg:min-h-[760px]">
+        <section className="relative left-1/2 right-1/2 -mx-[50vw] w-screen overflow-hidden bg-white">
+            <div className="relative aspect-[16/9] w-full bg-white">
                 <Image
                     src={activeSlide.image}
                     alt={activeSlide.title}
                     fill
                     priority
-                    className="object-cover object-center"
+                    className="object-contain object-center"
                     sizes="100vw"
                 />
 
-                <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/35 to-black/65" />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/0 via-black/35 to-black/80" />
+
 
                 <div className="absolute inset-x-0 bottom-16 z-10 mx-auto flex max-w-5xl flex-col items-center px-6 text-center text-white">
                     <p className="mb-3 text-xl font-bold tracking-tight">
@@ -99,7 +100,7 @@ export default function HeroCarousel() {
                     ))}
                 </div>
 
-                <div className="absolute bottom-8 right-8 z-20 flex items-center gap-3">
+                <div className="absolute bottom-8 right-8 z-20 hidden items-center gap-3 sm:flex">
                     <button
                         onClick={previousSlide}
                         aria-label="Previous slide"
