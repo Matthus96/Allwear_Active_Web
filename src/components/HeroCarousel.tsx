@@ -62,7 +62,7 @@ export default function HeroCarousel() {
                 <div className="absolute inset-0 bg-gradient-to-b from-black/0 via-black/35 to-black/80" />
 
 
-                <div className="absolute inset-x-0 bottom-16 z-10 mx-auto flex max-w-5xl flex-col items-center px-6 text-center text-white">
+               <div className="absolute inset-x-0 bottom-6 z-10 mx-auto flex max-w-[80%] flex-col items-center px-4 text-center text-white sm:bottom-12 sm:max-w-3xl sm:px-6 lg:bottom-16 lg:max-w-5xl">
                     <p className="mb-3 text-xl font-bold tracking-tight">
                         {activeSlide.eyebrow}
                     </p>
