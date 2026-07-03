@@ -24,11 +24,46 @@ import {
 } from "@/lib/appwrite";
 
 type ProductWithFilters = Product & {
-    sizes?: string[] | { label?: string; name?: string; size?: string }[];
+    sizes?: unknown[];
     size?: string;
+    styles?: unknown[];
     style?: string;
-    styles?: string[] | { label?: string; name?: string; style?: string }[];
 };
+
+const getFilterValue = (value: unknown, keys: string[]) => {
+    if (typeof value === "string") {
+        return value;
+    }
+
+    if (typeof value === "object" && value !== null) {
+        const record = value as Record<string, unknown>;
+
+        for (const key of keys) {
+            const fieldValue = record[key];
+
+            if (typeof fieldValue === "string" && fieldValue.trim()) {
+                return fieldValue;
+            }
+        }
+    }
+
+    return "";
+};
+
+const bannerSlides = [
+    {
+        eyebrow: "Limited Stock!!",
+        title: "Shop the current Allwear Active drop before sizes sell out.",
+    },
+    {
+        eyebrow: "New Zealand Tour",
+        title: "Get ready for the New Zealand Tour!! Supporter pieces are landing.",
+    },
+    {
+        eyebrow: "Flat Delivery",
+        title: "Online orders include a flat local delivery fee of R100.00.",
+    },
+];
 
 function ShopContent() {
     const router = useRouter();
@@ -43,28 +78,13 @@ function ShopContent() {
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeBannerIndex, setActiveBannerIndex] = useState(0);
+    const [isFilterFloating, setIsFilterFloating] = useState(false);
 
     const filterAnchorRef = useRef<HTMLDivElement | null>(null);
-    const [isFilterFloating, setIsFilterFloating] = useState(false);
 
     const { data: categories = [] } = useAppwrite<Category[], any>({
         fn: getCategories,
     });
-
-    const bannerSlides = [
-        {
-            eyebrow: "Limited Stock!!",
-            title: "Shop the current Allwear Active drop before sizes sell out.",
-        },
-        {
-            eyebrow: "New Zealand Tour",
-            title: "Get ready for the New Zealand Tour!! Supporter pieces are landing.",
-        },
-        {
-            eyebrow: "Flat Delivery",
-            title: "Online orders include a flat local delivery fee of R100.00.",
-        },
-    ];
 
     useEffect(() => {
         const timer = window.setInterval(() => {
@@ -74,28 +94,26 @@ function ShopContent() {
         }, 3500);
 
         return () => window.clearInterval(timer);
-    }, [bannerSlides.length]);
+    }, []);
 
-                    useEffect(() => {
-                const handleScroll = () => {
-                    if (!filterAnchorRef.current) return;
+    useEffect(() => {
+        const handleScroll = () => {
+            if (!filterAnchorRef.current) return;
 
-                    const anchorTop =
-                        filterAnchorRef.current.getBoundingClientRect().top;
+            const anchorTop = filterAnchorRef.current.getBoundingClientRect().top;
+            setIsFilterFloating(anchorTop <= 88);
+        };
 
-                    setIsFilterFloating(anchorTop <= 88);
-                };
+        handleScroll();
 
-                handleScroll();
+        window.addEventListener("scroll", handleScroll, { passive: true });
+        window.addEventListener("resize", handleScroll);
 
-                window.addEventListener("scroll", handleScroll, { passive: true });
-                window.addEventListener("resize", handleScroll);
-
-                return () => {
-                    window.removeEventListener("scroll", handleScroll);
-                    window.removeEventListener("resize", handleScroll);
-                };
-            }, []);
+        return () => {
+            window.removeEventListener("scroll", handleScroll);
+            window.removeEventListener("resize", handleScroll);
+        };
+    }, []);
 
     useEffect(() => {
         let cancelled = false;
@@ -108,12 +126,6 @@ function ShopContent() {
                     category,
                     query,
                 });
-
-                const debugProducts = data as ProductWithFilters[];
-
-                console.log("SHOP PRODUCT DATA:", debugProducts);
-                console.log("FIRST PRODUCT:", debugProducts?.[0]);
-                console.log("FIRST PRODUCT SIZES:", debugProducts?.[0]?.sizes);
 
                 if (!cancelled) {
                     setProducts(data);
@@ -154,35 +166,29 @@ function ShopContent() {
         return selected?.name ?? "Selected Category";
     }, [activeCategory, categories]);
 
-    const getProductSizes = (item: ProductWithFilters) => {
-        if (Array.isArray(item.sizes)) {
-            return item.sizes
-                .map((size) => {
-                    if (typeof size === "string") return size;
-                    return size.label || size.size || "";
-                })
-                .filter(Boolean);
-        }
+        const getProductSizes = (item: ProductWithFilters) => {
+            if (Array.isArray(item.sizes)) {
+                return item.sizes
+                    .map((size) => getFilterValue(size, ["label", "name", "size"]))
+                    .filter(Boolean);
+            }
 
-        if (item.size) return [item.size];
+            if (item.size) return [item.size];
 
-        return [];
-    };
+            return [];
+        };
 
-    const getProductStyles = (item: ProductWithFilters) => {
-        if (Array.isArray(item.styles)) {
-            return item.styles
-                .map((style) => {
-                    if (typeof style === "string") return style;
-                    return style.label || style.name || style.style || "";
-                })
-                .filter(Boolean);
-        }
+        const getProductStyles = (item: ProductWithFilters) => {
+            if (Array.isArray(item.styles)) {
+                return item.styles
+                    .map((style) => getFilterValue(style, ["label", "name", "style"]))
+                    .filter(Boolean);
+            }
 
-        if (item.style) return [item.style];
+            if (item.style) return [item.style];
 
-        return [];
-    };
+            return [];
+        };
 
     const sizeOptions = useMemo(() => {
         const sizes = products.flatMap((item) =>
@@ -241,21 +247,10 @@ function ShopContent() {
     }) => {
         const params = new URLSearchParams();
 
-        if (searchQuery) {
-            params.set("query", searchQuery);
-        }
-
-        if (categoryId) {
-            params.set("category", categoryId);
-        }
-
-        if (size) {
-            params.set("size", size);
-        }
-
-        if (style) {
-            params.set("style", style);
-        }
+        if (searchQuery) params.set("query", searchQuery);
+        if (categoryId) params.set("category", categoryId);
+        if (size) params.set("size", size);
+        if (style) params.set("style", style);
 
         router.push(`/shop${params.toString() ? `?${params}` : ""}`, {
             scroll: false,
@@ -371,7 +366,9 @@ function ShopContent() {
                     >
                         <input
                             value={searchValue}
-                            onChange={(e) => setSearchValue(e.target.value)}
+                            onChange={(event) =>
+                                setSearchValue(event.target.value)
+                            }
                             placeholder="Search products..."
                             className="min-w-0 flex-1 px-[clamp(1rem,3vw,1.25rem)] py-[clamp(0.85rem,2vw,1rem)] text-[clamp(0.8rem,1.7vw,0.875rem)] font-medium text-zinc-900 outline-none placeholder:text-zinc-400"
                         />
@@ -385,185 +382,187 @@ function ShopContent() {
                     </form>
                 </div>
 
-                        <div
-                            ref={filterAnchorRef}
-                            className="grid grid-cols-[clamp(6.5rem,30vw,11rem)_minmax(0,1fr)] gap-[clamp(0.75rem,3vw,1.5rem)] lg:grid-cols-[260px_minmax(0,1fr)] xl:gap-8"
-                        >                    
-                        <div className="min-w-0">
+                <div
+                    ref={filterAnchorRef}
+                    className="grid grid-cols-[clamp(6.5rem,30vw,11rem)_minmax(0,1fr)] gap-[clamp(0.75rem,3vw,1.5rem)] lg:grid-cols-[260px_minmax(0,1fr)] xl:gap-8"
+                >
+                    <div className="min-w-0">
                         <aside
                             className={`self-start rounded-[clamp(1rem,3vw,1.75rem)] border border-zinc-100 bg-zinc-50 p-[clamp(0.6rem,2vw,1.25rem)] transition ${
                                 isFilterFloating
                                     ? "fixed left-[clamp(0.75rem,3vw,2rem)] top-[5.5rem] z-30 w-[clamp(12rem,38vw,15rem)] shadow-xl lg:sticky lg:left-auto lg:top-28 lg:w-full"
                                     : "relative z-10 w-full"
                             }`}
-                        >                       
-                        <div className="mb-[clamp(0.75rem,2vw,1.25rem)] flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-                            <h3 className="text-[clamp(0.95rem,2.5vw,1.125rem)] font-black text-zinc-950">
-                                Filters
-                            </h3>
+                        >
+                            <div className="mb-[clamp(0.75rem,2vw,1.25rem)] flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+                                <h3 className="text-[clamp(0.95rem,2.5vw,1.125rem)] font-black text-zinc-950">
+                                    Filters
+                                </h3>
 
-                            {(activeCategory ||
-                                query ||
-                                selectedSize ||
-                                selectedStyle) && (
-                                <button
-                                    type="button"
-                                    onClick={handleClearFilters}
-                                    className="w-fit shrink-0 text-[clamp(0.6rem,1.3vw,0.75rem)] font-black uppercase tracking-wide text-[#6FC276]"
-                                >
-                                    Clear
-                                </button>
-                            )}
-                        </div>
-
-                        <div>
-                            <p className="mb-[clamp(0.45rem,1.5vw,0.75rem)] text-[clamp(0.6rem,1.3vw,0.75rem)] font-black uppercase tracking-[0.16em] text-zinc-400">
-                                Category
-                            </p>
-
-                            <div className="flex flex-col gap-[clamp(0.4rem,1.5vw,0.75rem)]">
-                                <button
-                                    type="button"
-                                    onClick={() => handleCategoryClick()}
-                                    className={`w-full rounded-full px-[clamp(0.65rem,2vw,1.25rem)] py-[clamp(0.55rem,1.5vw,0.75rem)] text-left text-[clamp(0.65rem,1.5vw,0.875rem)] font-black leading-tight transition ${
-                                        !activeCategory
-                                            ? "bg-[#6FC276] text-white"
-                                            : "bg-white text-zinc-800 hover:bg-zinc-100"
-                                    }`}
-                                >
-                                    All Products
-                                </button>
-
-                                {(categories ?? []).map((cat) => {
-                                    const isActive =
-                                        String(cat.$id) ===
-                                        String(activeCategory);
-
-                                    return (
-                                        <button
-                                            key={cat.$id}
-                                            type="button"
-                                            onClick={() =>
-                                                handleCategoryClick(
-                                                    String(cat.$id)
-                                                )
-                                            }
-                                            className={`w-full rounded-full px-[clamp(0.65rem,2vw,1.25rem)] py-[clamp(0.55rem,1.5vw,0.75rem)] text-left text-[clamp(0.65rem,1.5vw,0.875rem)] font-black leading-tight transition ${
-                                                isActive
-                                                    ? "bg-[#6FC276] text-white"
-                                                    : "bg-white text-zinc-800 hover:bg-zinc-100"
-                                            }`}
-                                        >
-                                            {cat.name}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        <div className="mt-[clamp(1rem,3vw,1.5rem)] border-t border-zinc-200 pt-[clamp(0.9rem,3vw,1.25rem)]">
-                            <button
-                                type="button"
-                                className="mb-[clamp(0.6rem,2vw,1rem)] flex w-full items-center justify-between text-left"
-                            >
-                                <span className="text-[clamp(0.7rem,1.6vw,0.875rem)] font-black uppercase tracking-wide text-zinc-950">
-                                    Size
-                                </span>
-
-                                <span className="text-[clamp(0.7rem,1.6vw,0.875rem)] font-black text-zinc-950">
-                                    ⌃
-                                </span>
-                            </button>
-
-                            <div className="max-h-[240px] overflow-y-auto pr-1">
-                                <div className="grid grid-cols-2 gap-[clamp(0.35rem,1.5vw,0.75rem)] lg:grid-cols-3">
+                                {(activeCategory ||
+                                    query ||
+                                    selectedSize ||
+                                    selectedStyle) && (
                                     <button
                                         type="button"
-                                        onClick={() => handleSizeClick()}
-                                        className={`flex h-[clamp(2rem,5vw,2.5rem)] items-center justify-center rounded-full border text-[clamp(0.65rem,1.5vw,0.875rem)] font-medium transition ${
-                                            !selectedSize
-                                                ? "border-zinc-950 bg-zinc-950 text-white"
-                                                : "border-zinc-300 bg-white text-zinc-950 hover:border-zinc-950"
+                                        onClick={handleClearFilters}
+                                        className="w-fit shrink-0 text-[clamp(0.6rem,1.3vw,0.75rem)] font-black uppercase tracking-wide text-[#6FC276]"
+                                    >
+                                        Clear
+                                    </button>
+                                )}
+                            </div>
+
+                            <div>
+                                <p className="mb-[clamp(0.45rem,1.5vw,0.75rem)] text-[clamp(0.6rem,1.3vw,0.75rem)] font-black uppercase tracking-[0.16em] text-zinc-400">
+                                    Category
+                                </p>
+
+                                <div className="flex flex-col gap-[clamp(0.4rem,1.5vw,0.75rem)]">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleCategoryClick()}
+                                        className={`w-full rounded-full px-[clamp(0.65rem,2vw,1.25rem)] py-[clamp(0.55rem,1.5vw,0.75rem)] text-left text-[clamp(0.65rem,1.5vw,0.875rem)] font-black leading-tight transition ${
+                                            !activeCategory
+                                                ? "bg-[#6FC276] text-white"
+                                                : "bg-white text-zinc-800 hover:bg-zinc-100"
                                         }`}
                                     >
-                                        All
+                                        All Products
                                     </button>
 
-                                    {sizeOptions.map((size) => (
+                                    {(categories ?? []).map((cat) => {
+                                        const isActive =
+                                            String(cat.$id) ===
+                                            String(activeCategory);
+
+                                        return (
+                                            <button
+                                                key={cat.$id}
+                                                type="button"
+                                                onClick={() =>
+                                                    handleCategoryClick(
+                                                        String(cat.$id)
+                                                    )
+                                                }
+                                                className={`w-full rounded-full px-[clamp(0.65rem,2vw,1.25rem)] py-[clamp(0.55rem,1.5vw,0.75rem)] text-left text-[clamp(0.65rem,1.5vw,0.875rem)] font-black leading-tight transition ${
+                                                    isActive
+                                                        ? "bg-[#6FC276] text-white"
+                                                        : "bg-white text-zinc-800 hover:bg-zinc-100"
+                                                }`}
+                                            >
+                                                {cat.name}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="mt-[clamp(1rem,3vw,1.5rem)] border-t border-zinc-200 pt-[clamp(0.9rem,3vw,1.25rem)]">
+                                <button
+                                    type="button"
+                                    className="mb-[clamp(0.6rem,2vw,1rem)] flex w-full items-center justify-between text-left"
+                                >
+                                    <span className="text-[clamp(0.7rem,1.6vw,0.875rem)] font-black uppercase tracking-wide text-zinc-950">
+                                        Size
+                                    </span>
+
+                                    <span className="text-[clamp(0.7rem,1.6vw,0.875rem)] font-black text-zinc-950">
+                                        ⌃
+                                    </span>
+                                </button>
+
+                                <div className="max-h-[240px] overflow-y-auto pr-1">
+                                    <div className="grid grid-cols-2 gap-[clamp(0.35rem,1.5vw,0.75rem)] lg:grid-cols-3">
                                         <button
-                                            key={size}
                                             type="button"
-                                            onClick={() => handleSizeClick(size)}
+                                            onClick={() => handleSizeClick()}
                                             className={`flex h-[clamp(2rem,5vw,2.5rem)] items-center justify-center rounded-full border text-[clamp(0.65rem,1.5vw,0.875rem)] font-medium transition ${
-                                                selectedSize === size
+                                                !selectedSize
                                                     ? "border-zinc-950 bg-zinc-950 text-white"
                                                     : "border-zinc-300 bg-white text-zinc-950 hover:border-zinc-950"
                                             }`}
                                         >
-                                            {size}
+                                            All
                                         </button>
-                                    ))}
+
+                                        {sizeOptions.map((size) => (
+                                            <button
+                                                key={size}
+                                                type="button"
+                                                onClick={() =>
+                                                    handleSizeClick(size)
+                                                }
+                                                className={`flex h-[clamp(2rem,5vw,2.5rem)] items-center justify-center rounded-full border text-[clamp(0.65rem,1.5vw,0.875rem)] font-medium transition ${
+                                                    selectedSize === size
+                                                        ? "border-zinc-950 bg-zinc-950 text-white"
+                                                        : "border-zinc-300 bg-white text-zinc-950 hover:border-zinc-950"
+                                                }`}
+                                            >
+                                                {size}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div className="mt-[clamp(1rem,3vw,1.5rem)]">
-                            <p className="mb-[clamp(0.45rem,1.5vw,0.75rem)] text-[clamp(0.6rem,1.3vw,0.75rem)] font-black uppercase tracking-[0.16em] text-zinc-400">
-                                Style
-                            </p>
+                            <div className="mt-[clamp(1rem,3vw,1.5rem)]">
+                                <p className="mb-[clamp(0.45rem,1.5vw,0.75rem)] text-[clamp(0.6rem,1.3vw,0.75rem)] font-black uppercase tracking-[0.16em] text-zinc-400">
+                                    Style
+                                </p>
 
-                            <div className="flex flex-col gap-[clamp(0.4rem,1.5vw,0.5rem)] lg:flex-row lg:flex-wrap">
-                                <button
-                                    type="button"
-                                    onClick={() => handleStyleClick()}
-                                    className={`rounded-full px-[clamp(0.65rem,2vw,1rem)] py-[clamp(0.45rem,1.4vw,0.5rem)] text-[clamp(0.6rem,1.3vw,0.75rem)] font-black leading-tight transition ${
-                                        !selectedStyle
-                                            ? "bg-zinc-950 text-white"
-                                            : "bg-white text-zinc-700 hover:bg-zinc-100"
-                                    }`}
-                                >
-                                    All Styles
-                                </button>
+                                <div className="flex flex-col gap-[clamp(0.4rem,1.5vw,0.5rem)] lg:flex-row lg:flex-wrap">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleStyleClick()}
+                                        className={`rounded-full px-[clamp(0.65rem,2vw,1rem)] py-[clamp(0.45rem,1.4vw,0.5rem)] text-[clamp(0.6rem,1.3vw,0.75rem)] font-black leading-tight transition ${
+                                            !selectedStyle
+                                                ? "bg-zinc-950 text-white"
+                                                : "bg-white text-zinc-700 hover:bg-zinc-100"
+                                        }`}
+                                    >
+                                        All Styles
+                                    </button>
 
-                                {styleOptions.length > 0 ? (
-                                    styleOptions.map((style) => (
-                                        <button
-                                            key={style}
-                                            type="button"
-                                            onClick={() =>
-                                                handleStyleClick(style)
-                                            }
-                                            className={`rounded-full px-[clamp(0.65rem,2vw,1rem)] py-[clamp(0.45rem,1.4vw,0.5rem)] text-[clamp(0.6rem,1.3vw,0.75rem)] font-black leading-tight transition ${
-                                                selectedStyle === style
-                                                    ? "bg-[#6FC276] text-white"
-                                                    : "bg-white text-zinc-700 hover:bg-zinc-100"
-                                            }`}
-                                        >
-                                            {style}
-                                        </button>
-                                    ))
-                                ) : (
-                                    <p className="text-[clamp(0.7rem,1.5vw,0.875rem)] text-zinc-400">
-                                        No style data yet.
-                                    </p>
-                                )}
+                                    {styleOptions.length > 0 ? (
+                                        styleOptions.map((style) => (
+                                            <button
+                                                key={style}
+                                                type="button"
+                                                onClick={() =>
+                                                    handleStyleClick(style)
+                                                }
+                                                className={`rounded-full px-[clamp(0.65rem,2vw,1rem)] py-[clamp(0.45rem,1.4vw,0.5rem)] text-[clamp(0.6rem,1.3vw,0.75rem)] font-black leading-tight transition ${
+                                                    selectedStyle === style
+                                                        ? "bg-[#6FC276] text-white"
+                                                        : "bg-white text-zinc-700 hover:bg-zinc-100"
+                                                }`}
+                                            >
+                                                {style}
+                                            </button>
+                                        ))
+                                    ) : (
+                                        <p className="text-[clamp(0.7rem,1.5vw,0.875rem)] text-zinc-400">
+                                            No style data yet.
+                                        </p>
+                                    )}
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="mt-[clamp(1rem,3vw,1.5rem)] rounded-[clamp(0.9rem,2vw,1rem)] bg-white p-[clamp(0.75rem,2vw,1.25rem)]">
-                            <p className="text-[clamp(0.75rem,1.7vw,0.875rem)] font-black text-zinc-950">
-                                Delivery
-                            </p>
+                            <div className="mt-[clamp(1rem,3vw,1.5rem)] rounded-[clamp(0.9rem,2vw,1rem)] bg-white p-[clamp(0.75rem,2vw,1.25rem)]">
+                                <p className="text-[clamp(0.75rem,1.7vw,0.875rem)] font-black text-zinc-950">
+                                    Delivery
+                                </p>
 
-                            <p className="mt-[clamp(0.35rem,1vw,0.5rem)] text-[clamp(0.68rem,1.5vw,0.875rem)] leading-5 text-zinc-500">
-                                Flat fee of{" "}
-                                <span className="font-black text-zinc-950">
-                                    R100.00
-                                </span>{" "}
-                                at checkout.
-                            </p>
-                        </div>
-                    </aside>
+                                <p className="mt-[clamp(0.35rem,1vw,0.5rem)] text-[clamp(0.68rem,1.5vw,0.875rem)] leading-5 text-zinc-500">
+                                    Flat fee of{" "}
+                                    <span className="font-black text-zinc-950">
+                                        R100.00
+                                    </span>{" "}
+                                    at checkout.
+                                </p>
+                            </div>
+                        </aside>
                     </div>
 
                     <div className="min-w-0">
@@ -601,22 +600,7 @@ function ShopContent() {
                         )}
 
                         {loading && products.length === 0 ? (
-                            <div className="grid grid-cols-1 gap-[clamp(0.75rem,2vw,1rem)] min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-[1800px]:grid-cols-6">
-                                {Array.from({ length: 12 }).map((_, index) => (
-                                    <div
-                                        key={index}
-                                        className="overflow-hidden rounded-[clamp(1rem,2.5vw,1.5rem)] border border-zinc-100 bg-white"
-                                    >
-                                        <div className="aspect-[4/5] animate-pulse bg-zinc-100" />
-
-                                        <div className="space-y-3 p-[clamp(0.75rem,2vw,1rem)]">
-                                            <div className="h-4 w-3/4 animate-pulse rounded bg-zinc-100" />
-                                            <div className="h-4 w-1/2 animate-pulse rounded bg-zinc-100" />
-                                            <div className="h-10 animate-pulse rounded-full bg-zinc-100" />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                            <ProductGridSkeleton />
                         ) : productCount > 0 ? (
                             <div className="grid grid-cols-1 gap-[clamp(0.75rem,2vw,1rem)] min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-[1800px]:grid-cols-6">
                                 {filteredProducts.map((item) => (
@@ -624,29 +608,7 @@ function ShopContent() {
                                 ))}
                             </div>
                         ) : (
-                            <div className="rounded-[clamp(1.25rem,3vw,2rem)] border border-zinc-100 bg-zinc-50 px-[clamp(1rem,3vw,1.5rem)] py-[clamp(3rem,8vw,5rem)] text-center">
-                                <p className="text-[clamp(0.7rem,1.5vw,0.875rem)] font-black uppercase tracking-[0.2em] text-[#6FC276]">
-                                    No Results
-                                </p>
-
-                                <h3 className="mt-[clamp(0.6rem,1.5vw,0.75rem)] text-[clamp(1.5rem,4vw,1.875rem)] font-black text-zinc-950">
-                                    No products found
-                                </h3>
-
-                                <p className="mx-auto mt-[clamp(0.6rem,1.5vw,0.75rem)] max-w-md text-[clamp(0.8rem,1.8vw,0.875rem)] leading-7 text-zinc-500">
-                                    Try another category, size, style or search
-                                    term. You can also clear all filters and
-                                    browse the full collection.
-                                </p>
-
-                                <button
-                                    type="button"
-                                    onClick={handleClearFilters}
-                                    className="mt-[clamp(1.25rem,3vw,1.5rem)] rounded-full bg-zinc-950 px-[clamp(1.5rem,3vw,1.75rem)] py-[clamp(0.85rem,2vw,1rem)] text-[clamp(0.75rem,1.6vw,0.875rem)] font-black text-white"
-                                >
-                                    Clear Filters
-                                </button>
-                            </div>
+                            <NoResults onClearFilters={handleClearFilters} />
                         )}
                     </div>
                 </div>
@@ -654,6 +616,54 @@ function ShopContent() {
 
             <Footer />
         </main>
+    );
+}
+
+function ProductGridSkeleton() {
+    return (
+        <div className="grid grid-cols-1 gap-[clamp(0.75rem,2vw,1rem)] min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-[1800px]:grid-cols-6">
+            {Array.from({ length: 12 }).map((_, index) => (
+                <div
+                    key={index}
+                    className="overflow-hidden rounded-[clamp(1rem,2.5vw,1.5rem)] border border-zinc-100 bg-white"
+                >
+                    <div className="aspect-[4/5] animate-pulse bg-zinc-100" />
+
+                    <div className="space-y-3 p-[clamp(0.75rem,2vw,1rem)]">
+                        <div className="h-4 w-3/4 animate-pulse rounded bg-zinc-100" />
+                        <div className="h-4 w-1/2 animate-pulse rounded bg-zinc-100" />
+                        <div className="h-10 animate-pulse rounded-full bg-zinc-100" />
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function NoResults({ onClearFilters }: { onClearFilters: () => void }) {
+    return (
+        <div className="rounded-[clamp(1.25rem,3vw,2rem)] border border-zinc-100 bg-zinc-50 px-[clamp(1rem,3vw,1.5rem)] py-[clamp(3rem,8vw,5rem)] text-center">
+            <p className="text-[clamp(0.7rem,1.5vw,0.875rem)] font-black uppercase tracking-[0.2em] text-[#6FC276]">
+                No Results
+            </p>
+
+            <h3 className="mt-[clamp(0.6rem,1.5vw,0.75rem)] text-[clamp(1.5rem,4vw,1.875rem)] font-black text-zinc-950">
+                No products found
+            </h3>
+
+            <p className="mx-auto mt-[clamp(0.6rem,1.5vw,0.75rem)] max-w-md text-[clamp(0.8rem,1.8vw,0.875rem)] leading-7 text-zinc-500">
+                Try another category, size, style or search term. You can also
+                clear all filters and browse the full collection.
+            </p>
+
+            <button
+                type="button"
+                onClick={onClearFilters}
+                className="mt-[clamp(1.25rem,3vw,1.5rem)] rounded-full bg-zinc-950 px-[clamp(1.5rem,3vw,1.75rem)] py-[clamp(0.85rem,2vw,1rem)] text-[clamp(0.75rem,1.6vw,0.875rem)] font-black text-white"
+            >
+                Clear Filters
+            </button>
+        </div>
     );
 }
 

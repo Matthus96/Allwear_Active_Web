@@ -15,8 +15,10 @@ const geistMono = Geist_Mono({
     subsets: ["latin"],
 });
 
+const siteUrl = "https://allwearactive.co.za";
+
 export const metadata: Metadata = {
-    metadataBase: new URL("https://allwearactive.co.za"),
+    metadataBase: new URL(siteUrl),
 
     applicationName: "Allwear Active",
 
@@ -36,17 +38,27 @@ export const metadata: Metadata = {
         "sportswear South Africa",
         "teamwear South Africa",
         "lifestyle apparel South Africa",
+        "running apparel South Africa",
+        "training apparel South Africa",
     ],
 
     authors: [{ name: "Allwear" }],
     creator: "Allwear",
     publisher: "Allwear",
 
+    alternates: {
+        canonical: siteUrl,
+    },
+
+    icons: {
+        icon: "/favicon.ico",
+    },
+
     openGraph: {
         title: "Allwear Active | Premium Activewear in South Africa",
         description:
             "Shop Allwear Active apparel, activewear, teamwear and lifestyle collections in South Africa.",
-        url: "https://allwearactive.co.za",
+        url: siteUrl,
         siteName: "Allwear Active",
         locale: "en_ZA",
         type: "website",
@@ -69,6 +81,12 @@ export const metadata: Metadata = {
             "max-snippet": -1,
             "max-video-preview": -1,
         },
+    },
+
+    formatDetection: {
+        telephone: false,
+        email: false,
+        address: false,
     },
 
     category: "ecommerce",
