@@ -82,9 +82,11 @@ function ShopContent() {
 
     const filterAnchorRef = useRef<HTMLDivElement | null>(null);
 
-    const { data: categories = [] } = useAppwrite<Category[], any>({
+    const { data: categoriesData } = useAppwrite<Category[], any>({
         fn: getCategories,
     });
+
+    const categories = categoriesData ?? [];
 
     useEffect(() => {
         const timer = window.setInterval(() => {
@@ -389,9 +391,9 @@ function ShopContent() {
                     <div className="min-w-0">
                         <aside
                             className={`self-start rounded-[clamp(1rem,3vw,1.75rem)] border border-zinc-100 bg-zinc-50 p-[clamp(0.6rem,2vw,1.25rem)] transition ${
-                                isFilterFloating
-                                    ? "fixed left-[clamp(0.75rem,3vw,2rem)] top-[5.5rem] z-30 w-[clamp(12rem,38vw,15rem)] shadow-xl lg:sticky lg:left-auto lg:top-28 lg:w-full"
-                                    : "relative z-10 w-full"
+                            isFilterFloating
+                                ? "fixed left-[clamp(0.75rem,3vw,2rem)] top-[5.5rem] z-30 w-[clamp(6.5rem,30vw,11rem)] shadow-xl lg:sticky lg:left-auto lg:top-28 lg:w-full"
+                                : "relative z-10 w-full"
                             }`}
                         >
                             <div className="mb-[clamp(0.75rem,2vw,1.25rem)] flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
@@ -431,7 +433,7 @@ function ShopContent() {
                                         All Products
                                     </button>
 
-                                    {(categories ?? []).map((cat) => {
+                                    {categories.map((cat) => {
                                         const isActive =
                                             String(cat.$id) ===
                                             String(activeCategory);

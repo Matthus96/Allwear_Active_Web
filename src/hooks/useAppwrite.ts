@@ -32,14 +32,27 @@ const useAppwrite = <T, P extends Record<string, any>>({
             try {
                 const result = await fn({ ...fetchParams });
                 setData(result);
-            } catch (err: unknown) {
+            } catch (error: unknown) {
+                const appwriteError = error as {
+                    message?: string;
+                    code?: number;
+                    type?: string;
+                    response?: unknown;
+                };
+
                 const errorMessage =
-                    err instanceof Error
-                        ? err.message
-                        : "An unknown error occurred";
+                    appwriteError.message ||
+                    (error instanceof Error ? error.message : "Something went wrong");
 
                 setError(errorMessage);
-                console.error("APPWRITE FETCH ERROR:", errorMessage);
+
+                console.error("APPWRITE FETCH ERROR:", {
+                    message: errorMessage,
+                    code: appwriteError.code,
+                    type: appwriteError.type,
+                    response: appwriteError.response,
+                    rawError: error,
+                });
             } finally {
                 setLoading(false);
             }
