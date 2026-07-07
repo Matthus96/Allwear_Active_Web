@@ -129,62 +129,6 @@ export default function HomePage() {
                                 </Link>
                             ))}
                         </div>
-
-                        <div className="mt-[clamp(1.5rem,4vw,2rem)] grid gap-[clamp(1rem,3vw,1.5rem)] md:grid-cols-3">
-                            <Link
-                                href="/shop"
-                                className="rounded-[clamp(1.25rem,3vw,2rem)] bg-white p-[clamp(1rem,3vw,1.5rem)] ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-xl"
-                            >
-                                <p className="text-[clamp(0.7rem,1.5vw,0.875rem)] font-black uppercase tracking-[0.2em] text-[#6FC276]">
-                                    Shop
-                                </p>
-
-                                <h3 className="mt-[clamp(0.6rem,1.5vw,0.75rem)] text-[clamp(1.25rem,3vw,1.5rem)] font-black leading-tight text-zinc-950">
-                                    Online products
-                                </h3>
-
-                                <p className="mt-[clamp(0.6rem,1.5vw,0.75rem)] text-[clamp(0.8rem,1.8vw,0.875rem)] leading-6 text-zinc-500">
-                                    Browse available products, select sizes and checkout
-                                    online.
-                                </p>
-                            </Link>
-
-                            <Link
-                                href="/shop"
-                                className="rounded-[clamp(1.25rem,3vw,2rem)] bg-white p-[clamp(1rem,3vw,1.5rem)] ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-xl"
-                            >
-                                <p className="text-[clamp(0.7rem,1.5vw,0.875rem)] font-black uppercase tracking-[0.2em] text-[#6FC276]">
-                                    Browse
-                                </p>
-
-                                <h3 className="mt-[clamp(0.6rem,1.5vw,0.75rem)] text-[clamp(1.25rem,3vw,1.5rem)] font-black leading-tight text-zinc-950">
-                                    Collections
-                                </h3>
-
-                                <p className="mt-[clamp(0.6rem,1.5vw,0.75rem)] text-[clamp(0.8rem,1.8vw,0.875rem)] leading-6 text-zinc-500">
-                                    Explore activewear, event ranges and future Allwear
-                                    divisions.
-                                </p>
-                            </Link>
-
-                            <Link
-                                href="/cart"
-                                className="rounded-[clamp(1.25rem,3vw,2rem)] bg-white p-[clamp(1rem,3vw,1.5rem)] ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-xl"
-                            >
-                                <p className="text-[clamp(0.7rem,1.5vw,0.875rem)] font-black uppercase tracking-[0.2em] text-[#6FC276]">
-                                    Checkout
-                                </p>
-
-                                <h3 className="mt-[clamp(0.6rem,1.5vw,0.75rem)] text-[clamp(1.25rem,3vw,1.5rem)] font-black leading-tight text-zinc-950">
-                                    Cart & orders
-                                </h3>
-
-                                <p className="mt-[clamp(0.6rem,1.5vw,0.75rem)] text-[clamp(0.8rem,1.8vw,0.875rem)] leading-6 text-zinc-500">
-                                    Add products to cart, checkout and view your order
-                                    history.
-                                </p>
-                            </Link>
-                        </div>
                     </div>
                 </div>
             </section>
@@ -259,9 +203,9 @@ export default function HomePage() {
             <section className="bg-zinc-100">
                 <div className="site-container py-[clamp(2.5rem,6vw,5rem)]">
                     <div className="mb-[clamp(1.5rem,4vw,2.5rem)] max-w-5xl">
-                        <p className="text-[clamp(0.7rem,1.5vw,0.875rem)] font-black uppercase tracking-[0.25em] text-[#6FC276]">
-                            Coming to the Hub
-                        </p>
+                        <h1 className=" font-black uppercase tracking-[0.25em] text-[#6FC276]">
+                            Coming Soon
+                        </h1>
 
                         <h2 className="mt-[clamp(0.75rem,2vw,1rem)] text-[clamp(1.75rem,5vw,3.75rem)] font-black leading-none tracking-tight text-zinc-950">
                             Built to become Allwear’s complete digital
@@ -269,10 +213,9 @@ export default function HomePage() {
                         </h2>
 
                         <p className="mt-[clamp(0.9rem,2vw,1.25rem)] max-w-4xl text-[clamp(0.85rem,2vw,1rem)] leading-6 text-zinc-600">
-                            The current Allwear Active site can grow into a
-                            Bash-style product platform for every Allwear
-                            division, without losing the shop and checkout
-                            system we already have.
+                            The current Allwear Active site can grow into an
+                            all inclusive product platform for every Allwear
+                            division.
                         </p>
                     </div>
 

@@ -39,6 +39,7 @@ export type Product = Models.Document & {
     modelSideImage?: string;
     modelBackImage?: string;
     modelCloseupImage?: string;
+    isNewDrop?: boolean;
 };
 
 export type ProductInventory = Models.Document & {

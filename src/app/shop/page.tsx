@@ -1,13 +1,7 @@
 "use client";
 
-import {
-    FormEvent,
-    Suspense,
-    useEffect,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import type { FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import ProductCard from "@/components/ProductCard";
@@ -23,32 +17,21 @@ import {
     type Product,
 } from "@/lib/appwrite";
 
-type ProductWithFilters = Product & {
+type ProductWithFilters = Omit<
+    Product,
+    "category" | "sizes" | "size" | "styles" | "style" | "range" | "isNewDrop"
+> & {
+    category?: unknown;
     sizes?: unknown[];
     size?: string;
     styles?: unknown[];
     style?: string;
+    range?: unknown;
+    isNewDrop?: boolean | string;
 };
 
-const getFilterValue = (value: unknown, keys: string[]) => {
-    if (typeof value === "string") {
-        return value;
-    }
-
-    if (typeof value === "object" && value !== null) {
-        const record = value as Record<string, unknown>;
-
-        for (const key of keys) {
-            const fieldValue = record[key];
-
-            if (typeof fieldValue === "string" && fieldValue.trim()) {
-                return fieldValue;
-            }
-        }
-    }
-
-    return "";
-};
+const NEW_DROP_FILTER_ID = "new-drop";
+const NEW_DROP_RANGE_NAME = "New Drop";
 
 const bannerSlides = [
     {
@@ -65,6 +48,163 @@ const bannerSlides = [
     },
 ];
 
+const normalizeFilterText = (value: unknown) =>
+    typeof value === "string" ? value.trim().toLowerCase() : "";
+
+const normalizeSlugText = (value: unknown) =>
+    typeof value === "string"
+        ? value.trim().toLowerCase().replace(/[\s_]+/g, "-")
+        : "";
+
+const getFilterValue = (value: unknown, keys: string[]) => {
+    if (typeof value === "string") {
+        return value.trim();
+    }
+
+    if (typeof value === "object" && value !== null) {
+        const record = value as Record<string, unknown>;
+
+        for (const key of keys) {
+            const fieldValue = record[key];
+
+            if (typeof fieldValue === "string" && fieldValue.trim()) {
+                return fieldValue.trim();
+            }
+
+            if (typeof fieldValue === "number") {
+                return String(fieldValue);
+            }
+        }
+    }
+
+    return "";
+};
+
+const getNumberValue = (value: unknown, keys: string[]) => {
+    if (typeof value !== "object" || value === null) return null;
+
+    const record = value as Record<string, unknown>;
+
+    for (const key of keys) {
+        const fieldValue = record[key];
+
+        if (typeof fieldValue === "number") {
+            return fieldValue;
+        }
+
+        if (typeof fieldValue === "string" && fieldValue.trim()) {
+            const parsed = Number(fieldValue);
+
+            if (!Number.isNaN(parsed)) {
+                return parsed;
+            }
+        }
+    }
+
+    return null;
+};
+
+const isFilterOptionAvailable = (value: unknown) => {
+    if (typeof value !== "object" || value === null) {
+        return true;
+    }
+
+    const record = value as Record<string, unknown>;
+
+    if (record.available === false) return false;
+    if (record.inStock === false) return false;
+    if (record.isAvailable === false) return false;
+
+    const quantity = getNumberValue(value, [
+        "quantity",
+        "qty",
+        "stock",
+        "available",
+        "availableQuantity",
+    ]);
+
+    if (quantity !== null) {
+        return quantity > 0;
+    }
+
+    return true;
+};
+
+const getProductSizes = (item: ProductWithFilters) => {
+    if (Array.isArray(item.sizes)) {
+        return item.sizes
+            .filter(isFilterOptionAvailable)
+            .map((size) => getFilterValue(size, ["label", "name", "size"]))
+            .filter(Boolean);
+    }
+
+    if (item.size) return [item.size];
+
+    return [];
+};
+
+const getProductStyles = (item: ProductWithFilters) => {
+    if (Array.isArray(item.styles)) {
+        return item.styles
+            .map((style) => getFilterValue(style, ["label", "name", "style"]))
+            .filter(Boolean);
+    }
+
+    if (item.style) return [item.style];
+
+    return [];
+};
+
+const getProductCategoryId = (category: unknown) => {
+    if (typeof category === "string") {
+        return category;
+    }
+
+    if (typeof category === "object" && category !== null) {
+        return getFilterValue(category, [
+            "$id",
+            "id",
+            "categoryId",
+            "value",
+            "slug",
+            "name",
+        ]);
+    }
+
+    return "";
+};
+
+const isTruthyFlag = (value: unknown) =>
+    value === true ||
+    normalizeFilterText(value) === "true" ||
+    normalizeFilterText(value) === "yes";
+
+const isProductNewDrop = (item: ProductWithFilters) => {
+    const rangeValue = getFilterValue(item.range, [
+        "label",
+        "name",
+        "range",
+        "title",
+        "slug",
+        "$id",
+    ]);
+
+    return (
+        isTruthyFlag(item.isNewDrop) ||
+        normalizeFilterText(rangeValue) ===
+            normalizeFilterText(NEW_DROP_RANGE_NAME) ||
+        normalizeSlugText(rangeValue) === NEW_DROP_FILTER_ID
+    );
+};
+
+const hasSelectedFilterValue = (values: string[], selectedValue: string) => {
+    if (!selectedValue) return true;
+
+    return values.some(
+        (value) => normalizeFilterText(value) === normalizeFilterText(selectedValue)
+    );
+};
+
 function ShopContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -75,7 +215,7 @@ function ShopContent() {
     const selectedStyle = searchParams.get("style") || "";
 
     const [searchValue, setSearchValue] = useState(query);
-    const [products, setProducts] = useState<Product[]>([]);
+    const [products, setProducts] = useState<ProductWithFilters[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeBannerIndex, setActiveBannerIndex] = useState(0);
     const [isFilterFloating, setIsFilterFloating] = useState(false);
@@ -87,6 +227,7 @@ function ShopContent() {
     });
 
     const categories = categoriesData ?? [];
+    const activeCategory = category;
 
     useEffect(() => {
         const timer = window.setInterval(() => {
@@ -124,13 +265,15 @@ function ShopContent() {
             try {
                 setLoading(true);
 
+                const isNewDropFilter = category === NEW_DROP_FILTER_ID;
+
                 const data = await getMenu({
-                    category,
+                    category: isNewDropFilter ? "" : category,
                     query,
                 });
 
                 if (!cancelled) {
-                    setProducts(data);
+                    setProducts(data as ProductWithFilters[]);
                 }
             } catch (error) {
                 console.log("SHOP PRODUCTS ERROR:", error);
@@ -156,85 +299,79 @@ function ShopContent() {
         setSearchValue(query);
     }, [query]);
 
-    const activeCategory = category;
-
     const selectedCategoryName = useMemo(() => {
         if (!activeCategory) return "All Products";
 
-        const selected = categories?.find(
+        if (activeCategory === NEW_DROP_FILTER_ID) {
+            return "New Drop";
+        }
+
+        const selected = categories.find(
             (cat) => String(cat.$id) === String(activeCategory)
         );
 
         return selected?.name ?? "Selected Category";
     }, [activeCategory, categories]);
 
-        const getProductSizes = (item: ProductWithFilters) => {
-            if (Array.isArray(item.sizes)) {
-                return item.sizes
-                    .map((size) => getFilterValue(size, ["label", "name", "size"]))
-                    .filter(Boolean);
+    const categoryMatchedProducts = useMemo(() => {
+        return products.filter((product) => {
+            const item = product as ProductWithFilters;
+
+            if (!activeCategory) {
+                return true;
             }
 
-            if (item.size) return [item.size];
-
-            return [];
-        };
-
-        const getProductStyles = (item: ProductWithFilters) => {
-            if (Array.isArray(item.styles)) {
-                return item.styles
-                    .map((style) => getFilterValue(style, ["label", "name", "style"]))
-                    .filter(Boolean);
+            if (activeCategory === NEW_DROP_FILTER_ID) {
+                return isProductNewDrop(item);
             }
 
-            if (item.style) return [item.style];
+            const productCategoryId = getProductCategoryId(item.category);
 
-            return [];
-        };
+            if (!productCategoryId) {
+                return true;
+            }
+
+            return String(productCategoryId) === String(activeCategory);
+        });
+    }, [products, activeCategory]);
 
     const sizeOptions = useMemo(() => {
-        const sizes = products.flatMap((item) =>
-            getProductSizes(item as ProductWithFilters)
+        const sizes = categoryMatchedProducts.flatMap((item) =>
+            getProductSizes(item)
         );
 
         return Array.from(new Set(sizes)).sort((a, b) =>
             a.localeCompare(b, undefined, { numeric: true })
         );
-    }, [products]);
+    }, [categoryMatchedProducts]);
 
     const styleOptions = useMemo(() => {
-        const styles = products.flatMap((item) =>
-            getProductStyles(item as ProductWithFilters)
+        const styles = categoryMatchedProducts.flatMap((item) =>
+            getProductStyles(item)
         );
 
         return Array.from(new Set(styles)).sort((a, b) =>
             a.localeCompare(b, undefined, { numeric: true })
         );
-    }, [products]);
+    }, [categoryMatchedProducts]);
 
     const filteredProducts = useMemo(() => {
-        return products.filter((item) => {
-            const product = item as ProductWithFilters;
+        return categoryMatchedProducts.filter((product) => {
+            const item = product as ProductWithFilters;
 
-            const matchesSize = selectedSize
-                ? getProductSizes(product).some(
-                      (size) =>
-                          size.toLowerCase().trim() ===
-                          selectedSize.toLowerCase().trim()
-                  )
-                : true;
+            const matchesSize = hasSelectedFilterValue(
+                getProductSizes(item),
+                selectedSize
+            );
 
-            const matchesStyle = selectedStyle
-                ? getProductStyles(product).some(
-                      (style) =>
-                          style.toLowerCase().trim() ===
-                          selectedStyle.toLowerCase().trim()
-                  )
-                : true;
+            const matchesStyle = hasSelectedFilterValue(
+                getProductStyles(item),
+                selectedStyle
+            );
 
             return matchesSize && matchesStyle;
         });
-    }, [products, selectedSize, selectedStyle]);
+    }, [categoryMatchedProducts, selectedSize, selectedStyle]);
 
     const updateShopRoute = ({
         categoryId,
@@ -391,9 +528,9 @@ function ShopContent() {
                     <div className="min-w-0">
                         <aside
                             className={`self-start rounded-[clamp(1rem,3vw,1.75rem)] border border-zinc-100 bg-zinc-50 p-[clamp(0.6rem,2vw,1.25rem)] transition ${
-                            isFilterFloating
-                                ? "fixed left-[clamp(0.75rem,3vw,2rem)] top-[5.5rem] z-30 w-[clamp(6.5rem,30vw,11rem)] shadow-xl lg:sticky lg:left-auto lg:top-28 lg:w-full"
-                                : "relative z-10 w-full"
+                                isFilterFloating
+                                    ? "fixed left-[clamp(0.75rem,3vw,2rem)] top-[5.5rem] z-30 w-[clamp(6.5rem,30vw,11rem)] shadow-xl lg:sticky lg:left-auto lg:top-28 lg:w-full"
+                                    : "relative z-10 w-full"
                             }`}
                         >
                             <div className="mb-[clamp(0.75rem,2vw,1.25rem)] flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
@@ -431,6 +568,23 @@ function ShopContent() {
                                         }`}
                                     >
                                         All Products
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            handleCategoryClick(
+                                                NEW_DROP_FILTER_ID
+                                            )
+                                        }
+                                        className={`w-full rounded-full px-[clamp(0.65rem,2vw,1.25rem)] py-[clamp(0.55rem,1.5vw,0.75rem)] text-left text-[clamp(0.65rem,1.5vw,0.875rem)] font-black leading-tight transition ${
+                                            activeCategory ===
+                                            NEW_DROP_FILTER_ID
+                                                ? "bg-[#6FC276] text-white"
+                                                : "bg-white text-zinc-800 hover:bg-zinc-100"
+                                        }`}
+                                    >
+                                        New Drop
                                     </button>
 
                                     {categories.map((cat) => {
@@ -496,7 +650,10 @@ function ShopContent() {
                                                     handleSizeClick(size)
                                                 }
                                                 className={`flex h-[clamp(2rem,5vw,2.5rem)] items-center justify-center rounded-full border text-[clamp(0.65rem,1.5vw,0.875rem)] font-medium transition ${
-                                                    selectedSize === size
+                                                    normalizeFilterText(
+                                                        selectedSize
+                                                    ) ===
+                                                    normalizeFilterText(size)
                                                         ? "border-zinc-950 bg-zinc-950 text-white"
                                                         : "border-zinc-300 bg-white text-zinc-950 hover:border-zinc-950"
                                                 }`}
@@ -535,7 +692,10 @@ function ShopContent() {
                                                     handleStyleClick(style)
                                                 }
                                                 className={`rounded-full px-[clamp(0.65rem,2vw,1rem)] py-[clamp(0.45rem,1.4vw,0.5rem)] text-[clamp(0.6rem,1.3vw,0.75rem)] font-black leading-tight transition ${
-                                                    selectedStyle === style
+                                                    normalizeFilterText(
+                                                        selectedStyle
+                                                    ) ===
+                                                    normalizeFilterText(style)
                                                         ? "bg-[#6FC276] text-white"
                                                         : "bg-white text-zinc-700 hover:bg-zinc-100"
                                                 }`}
@@ -606,7 +766,10 @@ function ShopContent() {
                         ) : productCount > 0 ? (
                             <div className="grid grid-cols-1 gap-[clamp(0.75rem,2vw,1rem)] min-[420px]:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 min-[1800px]:grid-cols-6">
                                 {filteredProducts.map((item) => (
-                                    <ProductCard key={item.$id} item={item} />
+                                    <ProductCard
+                                        key={item.$id}
+                                        item={item as Product}
+                                    />
                                 ))}
                             </div>
                         ) : (
