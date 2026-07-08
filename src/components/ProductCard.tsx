@@ -10,6 +10,7 @@ type Product = {
     description?: string;
     backImage?: string;
     categories?: string | string[];
+    isComingSoon?: boolean;
 };
 
 export default function ProductCard({ item }: { item: Product }) {
@@ -63,11 +64,14 @@ export default function ProductCard({ item }: { item: Product }) {
             From
         </p>
 
-        <p className="mt-0.5 text-lg font-black leading-none text-zinc-950">
-            R{Number(item.price || 0).toFixed(2)}
-        </p>
-    </div>
-</div>
+            {item.isComingSoon
+                ? "Coming Soon"
+                : new Intl.NumberFormat("en-ZA", {
+                    style: "currency",
+                    currency: "ZAR",
+                }).format(item.price)}
+                </div>
+            </div>
         </article>
     );
 }

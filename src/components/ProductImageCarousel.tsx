@@ -26,10 +26,10 @@ export default function ProductImageCarousel({
         return [
             modelFrontImage ? { label: "Model Front", url: modelFrontImage } : null,
             modelSideImage ? { label: "Model Side", url: modelSideImage } : null,
+            backImage ? { label: "Product Back", url: backImage } : null,
+            frontImage ? { label: "Product Front", url: frontImage } : null,
             modelBackImage ? { label: "Model Back", url: modelBackImage } : null,
             modelCloseupImage ? { label: "Close-up", url: modelCloseupImage } : null,
-            frontImage ? { label: "Product Front", url: frontImage } : null,
-            backImage ? { label: "Product Back", url: backImage } : null,
         ].filter(Boolean) as { label: string; url: string }[];
     }, [
         modelFrontImage,

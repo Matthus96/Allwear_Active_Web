@@ -4,22 +4,26 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+const T_SHIRTS_CATEGORY_ID = "6a3a40ef0011068cab10";
+const NEW_DROPS_FILTER = "new-drops";
+
 const slides = [
     {
         eyebrow: "Allwear Active Presents",
         title: "MOVE WITH PURPOSE",
-        subtitle: "Performance apparel made for training, movement, and everyday wear.",
+        subtitle:
+            "Performance apparel made for training, movement, and everyday wear.",
         image: "/images/active.png",
-        primaryLabel: "Shop",
-        primaryHref: "/shop",
+        primaryLabel: "Shop T-Shirts",
+        primaryHref: `/shop?category=${T_SHIRTS_CATEGORY_ID}`,
     },
     {
         eyebrow: "New Collection",
-        title: "HORNS OVER HAKA",
+        title: "COMING SOON",
         subtitle: "Supporter merch, New Zealand Tour",
-        image: "/images/hero-training.png",
-        primaryLabel: "Shop",
-        primaryHref: "/shop",
+        image: "/images/hero2.png",
+        primaryLabel: "Preview",
+        primaryHref: `/shop?category=new-drop`,
     },
 ];
 

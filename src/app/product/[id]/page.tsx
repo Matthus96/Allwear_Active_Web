@@ -20,7 +20,6 @@ import {
     toggleWishlistProduct,
 } from "@/lib/wishlist";
 
-
 import {
     getMenu,
     getMenuById,
@@ -32,6 +31,37 @@ import {
 import { useCartStore } from "@/store/cart.store";
 
 const SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"];
+
+type ProductWithComingSoon = Product & {
+    isComingSoon?: boolean | string;
+    comingSoon?: boolean | string;
+    status?: string;
+};
+
+const normalizeFlagText = (value: unknown) =>
+    typeof value === "string" ? value.trim().toLowerCase() : "";
+
+const isTruthyFlag = (value: unknown) =>
+    value === true ||
+    normalizeFlagText(value) === "true" ||
+    normalizeFlagText(value) === "yes";
+
+const isProductComingSoon = (item: ProductWithComingSoon | null) => {
+    if (!item) return false;
+
+    return (
+        isTruthyFlag(item.isComingSoon) ||
+        isTruthyFlag(item.comingSoon) ||
+        normalizeFlagText(item.status) === "coming soon" ||
+        normalizeFlagText(item.status) === "coming-soon"
+    );
+};
+
+const formatPrice = (price: unknown) =>
+    new Intl.NumberFormat("en-ZA", {
+        style: "currency",
+        currency: "ZAR",
+    }).format(Number(price || 0));
 
 const normalizeCategories = (categories?: string | string[]) => {
     if (!categories) return [];
@@ -72,48 +102,59 @@ export default function ProductPage() {
                 setInventoryLoading(true);
                 setError(null);
 
-            const productData = await getMenuById({ id: productId });
-            setProduct(productData as Product);
+                const productData = await getMenuById({ id: productId });
+                const currentProduct = productData as ProductWithComingSoon;
+                const productComingSoon = isProductComingSoon(currentProduct);
 
-            setIsWishlisted(isProductInWishlist(productData.$id));
+                setProduct(productData as Product);
 
-            saveRecentlyViewedProduct(productData as Product);
+                setIsWishlisted(isProductInWishlist(productData.$id));
 
-            const recentlyViewed = getRecentlyViewedProducts().filter(
-                (item) => item.$id !== productData.$id
-            );
+                saveRecentlyViewedProduct(productData as Product);
 
-            setRecentlyViewedProducts(recentlyViewed.slice(0, 4));
+                const recentlyViewed = getRecentlyViewedProducts().filter(
+                    (item) => item.$id !== productData.$id
+                );
 
-            const inventoryData = await getProductInventory(productId);
-            setInventory(inventoryData);
+                setRecentlyViewedProducts(recentlyViewed.slice(0, 4));
 
-            const allProducts = await getMenu({});
+                if (productComingSoon) {
+                    setInventory([]);
+                    setSelectedSize("");
+                } else {
+                    const inventoryData = await getProductInventory(productId);
+                    setInventory(inventoryData);
+                }
 
-            const currentCategories = normalizeCategories(productData.categories);
+                const allProducts = await getMenu({});
 
-            const scoredProducts = allProducts
-                .filter((item) => item.$id !== productData.$id)
-                .map((item) => {
-                    const itemCategories = normalizeCategories(item.categories);
+                const currentCategories = normalizeCategories(
+                    productData.categories
+                );
 
-                    const matchingCategoryCount = itemCategories.filter((category) =>
-                        currentCategories.includes(category)
-                    ).length;
+                const scoredProducts = allProducts
+                    .filter((item) => item.$id !== productData.$id)
+                    .map((item) => {
+                        const itemCategories = normalizeCategories(
+                            item.categories
+                        );
 
-                    return {
-                        product: item,
-                        score: matchingCategoryCount,
-                    };
-                })
-                .sort((a, b) => b.score - a.score);
+                        const matchingCategoryCount = itemCategories.filter(
+                            (category) => currentCategories.includes(category)
+                        ).length;
 
-            const recommendedProducts = scoredProducts
-                .map((item) => item.product)
-                .slice(0, 4);
+                        return {
+                            product: item,
+                            score: matchingCategoryCount,
+                        };
+                    })
+                    .sort((a, b) => b.score - a.score);
 
-            setSimilarProducts(recommendedProducts);
+                const recommendedProducts = scoredProducts
+                    .map((item) => item.product)
+                    .slice(0, 4);
 
+                setSimilarProducts(recommendedProducts);
             } catch (e: any) {
                 setError(e?.message || "Could not load product.");
             } finally {
@@ -145,26 +186,49 @@ export default function ProductPage() {
         return Number(sizeInventory.quantity || 0) > 0;
     };
 
+    const isComingSoon = isProductComingSoon(
+        product as ProductWithComingSoon | null
+    );
+
     const availableSizes = useMemo(() => {
+        if (isComingSoon) return [];
+
         return SIZES.filter((size) => isSizeAvailable(size));
-    }, [inventory]);
+    }, [inventory, isComingSoon]);
+
+    const firstAvailableSize = availableSizes[0] || "";
 
     useEffect(() => {
-        if (!selectedSize && availableSizes.length > 0) {
-            setSelectedSize(availableSizes[0]);
+        if (isComingSoon) {
+            setSelectedSize("");
+            return;
+        }
+
+        if (!selectedSize && firstAvailableSize) {
+            setSelectedSize(firstAvailableSize);
+            return;
         }
 
         if (selectedSize && !isSizeAvailable(selectedSize)) {
-            setSelectedSize(availableSizes[0] || "");
+            setSelectedSize(firstAvailableSize);
         }
-    }, [availableSizes, selectedSize]);
+    }, [firstAvailableSize, selectedSize, isComingSoon, inventory]);
 
     const selectedSizeAvailable = selectedSize
         ? isSizeAvailable(selectedSize)
         : false;
 
+    const canAddToCart = Boolean(
+        product && !isComingSoon && selectedSizeAvailable
+    );
+
     const handleAddToCart = () => {
         if (!product) return;
+
+        if (isComingSoon) {
+            alert("This product is coming soon and cannot be added to cart yet.");
+            return;
+        }
 
         if (!selectedSize) {
             alert("Please select a size.");
@@ -290,42 +354,54 @@ export default function ProductPage() {
 
                     <div className="mt-5 flex flex-wrap items-center gap-3">
                         <p className="rounded-full bg-zinc-950 px-5 py-3 text-xl font-black text-white sm:text-2xl">
-                            R{Number(product.price || 0).toFixed(2)}
+                            {isComingSoon
+                                ? "Coming Soon"
+                                : formatPrice(product.price)}
                         </p>
 
                         <p className="rounded-full bg-zinc-100 px-5 py-3 text-xs font-black text-zinc-600 sm:text-sm">
-                            Online Store
+                            {isComingSoon ? "In Development" : "Online Store"}
                         </p>
                     </div>
 
                     <p className="mt-6 max-w-xl break-words text-sm leading-7 text-zinc-600 sm:text-base sm:leading-8">
                         {product.description ||
-                            "Premium apparel designed for comfort, movement and everyday performance. Select your size below to check availability and add this product to your cart."}
+                            (isComingSoon
+                                ? "This product is still in development and will be available soon. You can view the details now, but ordering is disabled until launch."
+                                : "Premium apparel designed for comfort, movement and everyday performance. Select your size below to check availability and add this product to your cart.")}
                     </p>
 
                     <div className="mt-8 w-full rounded-[2rem] bg-zinc-50 p-4 ring-1 ring-zinc-100 sm:p-5">
                         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400">
-                                    Select Size
+                                    {isComingSoon ? "Availability" : "Select Size"}
                                 </p>
 
                                 <h2 className="mt-1 text-xl font-black text-zinc-950 sm:text-2xl">
-                                    Choose your fit
+                                    {isComingSoon ? "Coming Soon" : "Choose your fit"}
                                 </h2>
                             </div>
 
-                            {inventoryLoading ? (
+                            {inventoryLoading && !isComingSoon ? (
                                 <p className="text-xs font-bold text-zinc-400">
                                     Checking stock...
                                 </p>
                             ) : null}
                         </div>
 
+                        {isComingSoon ? (
+                            <p className="mb-4 rounded-2xl bg-[#6FC276]/10 px-4 py-3 text-sm font-bold text-[#2f7d37]">
+                                This item is still in development. Sizes and checkout
+                                will unlock when it launches.
+                            </p>
+                        ) : null}
+
                         <div className="grid w-full grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3">
                             {SIZES.map((size) => {
                                 const active = selectedSize === size;
-                                const available = isSizeAvailable(size);
+                                const available =
+                                    !isComingSoon && isSizeAvailable(size);
                                 const sizeInventory = getSizeInventory(size);
                                 const quantity = Number(
                                     sizeInventory?.quantity || 0
@@ -365,7 +441,9 @@ export default function ProductPage() {
                             })}
                         </div>
 
-                        {!inventoryLoading && availableSizes.length === 0 ? (
+                        {!isComingSoon &&
+                        !inventoryLoading &&
+                        availableSizes.length === 0 ? (
                             <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
                                 This product is currently sold out.
                             </p>
@@ -388,15 +466,17 @@ export default function ProductPage() {
                     <div className="mt-8 grid w-full gap-3 sm:grid-cols-2">
                         <button
                             type="button"
-                            disabled={!selectedSizeAvailable}
+                            disabled={!canAddToCart}
                             onClick={handleAddToCart}
                             className={`w-full rounded-full px-5 py-4 text-sm font-black text-white transition sm:px-6 sm:text-base ${
-                                selectedSizeAvailable
+                                canAddToCart
                                     ? "bg-[#6FC276] hover:bg-zinc-950"
                                     : "cursor-not-allowed bg-zinc-300"
                             }`}
                         >
-                            {selectedSizeAvailable
+                            {isComingSoon
+                                ? "Coming Soon"
+                                : selectedSizeAvailable
                                 ? `Add ${selectedSize} to Cart +`
                                 : "Select available size"}
                         </button>

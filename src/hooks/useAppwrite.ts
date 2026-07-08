@@ -41,18 +41,16 @@ const useAppwrite = <T, P extends Record<string, any>>({
                 };
 
                 const errorMessage =
-                    appwriteError.message ||
-                    (error instanceof Error ? error.message : "Something went wrong");
+                    appwriteError?.message || "Something went wrong while fetching data.";
 
                 setError(errorMessage);
 
-                console.error("APPWRITE FETCH ERROR:", {
-                    message: errorMessage,
-                    code: appwriteError.code,
-                    type: appwriteError.type,
-                    response: appwriteError.response,
-                    rawError: error,
-                });
+            console.warn("APPWRITE FETCH WARNING:", {
+                message: errorMessage,
+                code: appwriteError?.code,
+                type: appwriteError?.type,
+                response: appwriteError?.response,
+            });
             } finally {
                 setLoading(false);
             }

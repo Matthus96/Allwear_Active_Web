@@ -19,7 +19,7 @@ import {
 
 type ProductWithFilters = Omit<
     Product,
-    "category" | "sizes" | "size" | "styles" | "style" | "range" | "isNewDrop"
+    "category" | "sizes" | "size" | "styles" | "style" | "range" | "isComingSoon"
 > & {
     category?: unknown;
     sizes?: unknown[];
@@ -27,11 +27,11 @@ type ProductWithFilters = Omit<
     styles?: unknown[];
     style?: string;
     range?: unknown;
-    isNewDrop?: boolean | string;
+    isComingSoon?: boolean | string;
 };
 
-const NEW_DROP_FILTER_ID = "new-drop";
-const NEW_DROP_RANGE_NAME = "New Drop";
+const COMING_SOON_FILTER_ID = "coming-soon";
+const COMING_SOON_RANGE_NAME = "Coming Soon";
 
 const bannerSlides = [
     {
@@ -179,7 +179,7 @@ const isTruthyFlag = (value: unknown) =>
     normalizeFilterText(value) === "true" ||
     normalizeFilterText(value) === "yes";
 
-const isProductNewDrop = (item: ProductWithFilters) => {
+const isProductComingSoon = (item: ProductWithFilters) => {
     const rangeValue = getFilterValue(item.range, [
         "label",
         "name",
@@ -190,10 +190,10 @@ const isProductNewDrop = (item: ProductWithFilters) => {
     ]);
 
     return (
-        isTruthyFlag(item.isNewDrop) ||
+        isTruthyFlag(item.isComingSoon) ||
         normalizeFilterText(rangeValue) ===
-            normalizeFilterText(NEW_DROP_RANGE_NAME) ||
-        normalizeSlugText(rangeValue) === NEW_DROP_FILTER_ID
+            normalizeFilterText(COMING_SOON_RANGE_NAME) ||
+        normalizeSlugText(rangeValue) === COMING_SOON_FILTER_ID
     );
 };
 
@@ -265,10 +265,10 @@ function ShopContent() {
             try {
                 setLoading(true);
 
-                const isNewDropFilter = category === NEW_DROP_FILTER_ID;
+                const isComingSoonFilter = category === COMING_SOON_FILTER_ID;
 
                 const data = await getMenu({
-                    category: isNewDropFilter ? "" : category,
+                    category: isComingSoonFilter ? "" : category,
                     query,
                 });
 
@@ -302,8 +302,8 @@ function ShopContent() {
     const selectedCategoryName = useMemo(() => {
         if (!activeCategory) return "All Products";
 
-        if (activeCategory === NEW_DROP_FILTER_ID) {
-            return "New Drop";
+        if (activeCategory === COMING_SOON_FILTER_ID) {
+            return "Coming Soon";
         }
 
         const selected = categories.find(
@@ -321,8 +321,8 @@ function ShopContent() {
                 return true;
             }
 
-            if (activeCategory === NEW_DROP_FILTER_ID) {
-                return isProductNewDrop(item);
+            if (activeCategory === COMING_SOON_FILTER_ID) {
+                return isProductComingSoon(item);
             }
 
             const productCategoryId = getProductCategoryId(item.category);
@@ -574,17 +574,17 @@ function ShopContent() {
                                         type="button"
                                         onClick={() =>
                                             handleCategoryClick(
-                                                NEW_DROP_FILTER_ID
+                                                COMING_SOON_FILTER_ID
                                             )
                                         }
                                         className={`w-full rounded-full px-[clamp(0.65rem,2vw,1.25rem)] py-[clamp(0.55rem,1.5vw,0.75rem)] text-left text-[clamp(0.65rem,1.5vw,0.875rem)] font-black leading-tight transition ${
                                             activeCategory ===
-                                            NEW_DROP_FILTER_ID
+                                            COMING_SOON_FILTER_ID
                                                 ? "bg-[#6FC276] text-white"
                                                 : "bg-white text-zinc-800 hover:bg-zinc-100"
                                         }`}
                                     >
-                                        New Drop
+                                        Coming Soon
                                     </button>
 
                                     {categories.map((cat) => {
