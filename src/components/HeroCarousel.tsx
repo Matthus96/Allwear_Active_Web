@@ -23,7 +23,7 @@ const slides = [
         subtitle: "Supporter merch, New Zealand Tour",
         image: "/images/hero2.png",
         primaryLabel: "Preview",
-        primaryHref: `/shop?category=new-drop`,
+        primaryHref: `/shop?category=coming-soon`,
     },
 ];
 

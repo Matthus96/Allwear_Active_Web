@@ -344,9 +344,6 @@ export default function ProductPage() {
                 </div>
 
                 <div className="min-w-0 overflow-hidden">
-                    <p className="text-xs font-black uppercase tracking-[0.22em] text-[#6FC276] sm:text-sm">
-                        Allwear Hub Product
-                    </p>
 
                     <h1 className="mt-4 max-w-full break-words text-3xl font-black leading-tight tracking-tight text-zinc-950 sm:text-4xl md:text-6xl">
                         {product.name}
