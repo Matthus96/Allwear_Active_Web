@@ -11,6 +11,7 @@ import {
 } from "@/components/kitbuilder/useSleeveNameTexture";
 
 import {
+    type GarmentName,
     type GarmentZone,
     useKitBuilderStore,
 } from "@/store/useKitBuilderStore";
@@ -321,9 +322,56 @@ export default function RugbyJersey() {
         (state) => state.badge
     );
 
-    const garmentName = useKitBuilderStore(
-        (state) => state.garmentName
+    const players = useKitBuilderStore(
+        (state) => state.players
     );
+
+    const selectedPlayerId =
+        useKitBuilderStore(
+            (state) =>
+                state.selectedPlayerId
+        );
+
+    const namePlacement =
+        useKitBuilderStore(
+            (state) =>
+                state.namePlacement
+        );
+
+    const nameColour =
+        useKitBuilderStore(
+            (state) =>
+                state.nameColour
+        );
+
+    const selectedPlayer =
+        players.find(
+            (player) =>
+                player.id ===
+                selectedPlayerId
+        ) ?? players[0];
+
+    const garmentName =
+        useMemo<GarmentName>(
+            () => ({
+                text:
+                    selectedPlayer?.name ??
+                    "",
+                number:
+                    selectedPlayer?.number ??
+                    "",
+                placement:
+                    namePlacement,
+                colour:
+                    nameColour,
+            }),
+            [
+                selectedPlayer?.name,
+                selectedPlayer?.number,
+                namePlacement,
+                nameColour,
+            ]
+        );
 
     const preparedModel = useMemo(() => {
         const clonedScene = scene.clone(true);
@@ -391,8 +439,8 @@ export default function RugbyJersey() {
         return scaleGroup;
     }, [scene]);
 
-const sleeveUVBounds = useMemo(
-    () => ({
+    const sleeveUVBounds = useMemo(
+        () => ({
         leftSleeve:
             getLargestZoneUVIslandBounds(
                 preparedModel,
@@ -404,9 +452,9 @@ const sleeveUVBounds = useMemo(
                 preparedModel,
                 "rightSleeve"
             ),
-    }),
-    [preparedModel]
-);
+        }),
+        [preparedModel]
+    );
 
     const bodyTexture = useJerseyTexture({
         primaryColour: zoneColours.body,

@@ -121,19 +121,124 @@ const namePlacements: Array<{
     },
 ];
 
+const sizeOptions = [
+    "XS",
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL",
+    "3XL",
+    "4XL",
+    "5XL",
+] as const;
+
+function downloadTextFile(
+    fileName: string,
+    contents: string,
+    mimeType: string
+) {
+    const blob = new Blob(
+        [contents],
+        {
+            type: mimeType,
+        }
+    );
+
+    const url =
+        URL.createObjectURL(blob);
+
+    const anchor =
+        document.createElement("a");
+
+    anchor.href = url;
+    anchor.download = fileName;
+
+    document.body.appendChild(
+        anchor
+    );
+
+    anchor.click();
+    anchor.remove();
+
+    window.setTimeout(() => {
+        URL.revokeObjectURL(url);
+    }, 1000);
+}
+
+function escapeCsvValue(
+    value:
+        | string
+        | number
+) {
+    const text =
+        String(value ?? "");
+
+    return `"${text.replace(
+        /"/g,
+        '""'
+    )}"`;
+}
+
 export default function KitBuilderShell() {
 
-    const garmentName = useKitBuilderStore(
-        (state) => state.garmentName
+    const players = useKitBuilderStore(
+        (state) => state.players
     );
 
-    const updateGarmentName = useKitBuilderStore(
-        (state) => state.updateGarmentName
-    );
+    const selectedPlayerId =
+        useKitBuilderStore(
+            (state) =>
+                state.selectedPlayerId
+        );
 
-    const clearGarmentName = useKitBuilderStore(
-        (state) => state.clearGarmentName
-    );
+    const selectPlayer =
+        useKitBuilderStore(
+            (state) =>
+                state.selectPlayer
+        );
+
+    const updatePlayer =
+        useKitBuilderStore(
+            (state) =>
+                state.updatePlayer
+        );
+
+    const addPlayer =
+        useKitBuilderStore(
+            (state) =>
+                state.addPlayer
+        );
+
+    const removePlayer =
+        useKitBuilderStore(
+            (state) =>
+                state.removePlayer
+        );
+
+    const namePlacement =
+        useKitBuilderStore(
+            (state) =>
+                state.namePlacement
+        );
+
+    const setNamePlacement =
+        useKitBuilderStore(
+            (state) =>
+                state.setNamePlacement
+        );
+
+    const nameColour =
+        useKitBuilderStore(
+            (state) =>
+                state.nameColour
+        );
+
+    const setNameColour =
+        useKitBuilderStore(
+            (state) =>
+                state.setNameColour
+        );
 
     const zoneColours = useKitBuilderStore(
         (state) => state.zoneColours
@@ -179,24 +284,31 @@ export default function KitBuilderShell() {
                 state.setSecondaryColour
         );
 
-        const badge = useKitBuilderStore(
-            (state) => state.badge
-        );
+    const badge = useKitBuilderStore(
+        (state) => state.badge
+    );
 
-        const setBadge = useKitBuilderStore(
-            (state) => state.setBadge
-        );
+    const setBadge = useKitBuilderStore(
+        (state) => state.setBadge
+    );
 
-        const updateBadge = useKitBuilderStore(
-            (state) => state.updateBadge
-        );
+    const updateBadge = useKitBuilderStore(
+        (state) => state.updateBadge
+    );
 
-        const removeBadge = useKitBuilderStore(
-            (state) => state.removeBadge
-        );
+    const removeBadge = useKitBuilderStore(
+        (state) => state.removeBadge
+    );
 
-        const [badgeError, setBadgeError] =
-            useState<string | null>(null);
+    const [badgeError, setBadgeError] =
+        useState<string | null>(null);
+
+    const [
+        exportMessage,
+        setExportMessage,
+    ] = useState<string | null>(
+        null
+    );
 
             function handleBadgeUpload(
                 event: ChangeEvent<HTMLInputElement>
@@ -272,6 +384,170 @@ export default function KitBuilderShell() {
 
                 reader.readAsDataURL(file);
             }
+
+
+    const selectedPlayer =
+        players.find(
+            (player) =>
+                player.id ===
+                selectedPlayerId
+        ) ?? players[0];
+
+    const activePlayers =
+        players.filter(
+            (player) =>
+                player.name.trim() ||
+                player.number.trim()
+        );
+
+    function handleExportJob() {
+        if (
+            activePlayers.length === 0
+        ) {
+            setExportMessage(
+                "Add at least one player name or number before exporting."
+            );
+
+            return;
+        }
+
+        const createdAt =
+            new Date();
+
+        const timestamp =
+            createdAt
+                .toISOString()
+                .replace(/\D/g, "")
+                .slice(0, 14);
+
+        const jobId =
+            `KIT-TEST-${timestamp}`;
+
+        const exportPlayers =
+            activePlayers.map(
+                (player) => ({
+                    ...player,
+                    name:
+                        player.name
+                            .trim()
+                            .toUpperCase(),
+                    number:
+                        player.number
+                            .trim()
+                            .toUpperCase(),
+                })
+            );
+
+        const job = {
+            schemaVersion: 1,
+            jobId,
+            createdAt:
+                createdAt.toISOString(),
+
+            garment: {
+                id:
+                    "rugby-jersey-05",
+                model:
+                    "/models/rugby-jersey-05.glb",
+            },
+
+            design: {
+                pattern:
+                    designPattern,
+
+                primaryColour:
+                    zoneColours.body,
+
+                secondaryColour,
+
+                zoneColours,
+            },
+
+            personalisation: {
+                namePlacement,
+                nameColour,
+            },
+
+            badge: badge
+                ? {
+                      name:
+                          badge.name,
+                      x: badge.x,
+                      y: badge.y,
+                      scale:
+                          badge.scale,
+                      rotation:
+                          badge.rotation,
+                  }
+                : null,
+
+            players:
+                exportPlayers,
+        };
+
+        const csvRows = [
+            [
+                "jobId",
+                "playerId",
+                "name",
+                "number",
+                "size",
+                "quantity",
+                "namePlacement",
+                "nameColour",
+            ],
+
+            ...exportPlayers.map(
+                (player) => [
+                    jobId,
+                    player.id,
+                    player.name,
+                    player.number,
+                    player.size,
+                    player.quantity,
+                    namePlacement,
+                    nameColour,
+                ]
+            ),
+        ];
+
+        const csv =
+            csvRows
+                .map((row) =>
+                    row
+                        .map(
+                            escapeCsvValue
+                        )
+                        .join(",")
+                )
+                .join("\r\n");
+
+        downloadTextFile(
+            `${jobId}.json`,
+            JSON.stringify(
+                job,
+                null,
+                2
+            ),
+            "application/json"
+        );
+
+        window.setTimeout(() => {
+            downloadTextFile(
+                `${jobId}-roster.csv`,
+                csv,
+                "text/csv;charset=utf-8"
+            );
+        }, 250);
+
+        setExportMessage(
+            `${exportPlayers.length} player dataset${
+                exportPlayers.length === 1
+                    ? ""
+                    : "s"
+            } exported for Roster Flow.`
+        );
+    }
 
     return (
         <main className="min-h-screen bg-white">
@@ -474,110 +750,289 @@ export default function KitBuilderShell() {
                     </div>
 
                     <div className="mt-7 border-t border-zinc-200 pt-6">
-                        <div className="mb-3 flex items-center justify-between gap-3">
-                            <p className="text-xs font-black uppercase tracking-[0.18em] text-zinc-400">
-                                Player name
-                            </p>
+                        <div className="flex items-center justify-between gap-3">
+                            <div>
+                                <p className="text-xs font-black uppercase tracking-[0.18em] text-zinc-400">
+                                    Team roster
+                                </p>
 
-                            {garmentName.text ? (
-                                <button
-                                    type="button"
-                                    onClick={clearGarmentName}
-                                    className="text-xs font-black text-red-600"
-                                >
-                                    Remove
-                                </button>
-                            ) : null}
+                                <p className="mt-1 text-xs font-semibold text-zinc-500">
+                                    {players.length} player datasets
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={addPlayer}
+                                className="rounded-full border border-zinc-300 px-3 py-2 text-xs font-black text-zinc-700 transition hover:border-zinc-950 hover:text-zinc-950"
+                            >
+                                Add player
+                            </button>
                         </div>
 
-                        <label className="block">
-                            <span className="mb-2 block text-sm font-bold text-zinc-800">
-                                Name
-                            </span>
-
-                            <input
-                                type="text"
-                                value={garmentName.text}
-                                maxLength={18}
-                                placeholder="WILKINSON"
-                                onChange={(event) =>
-                                    updateGarmentName({
-                                        text: event.target.value.toUpperCase(),
-                                    })
-                                }
-                                className="w-full rounded-2xl border border-zinc-200 px-4 py-3 text-sm font-black uppercase text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-950"
-                            />
-
-                            <span className="mt-1 block text-right text-xs font-semibold text-zinc-400">
-                                {garmentName.text.length}/18
-                            </span>
-                        </label>
-
-                        <div className="mt-4">
-                            <p className="mb-2 text-sm font-bold text-zinc-800">
-                                Placement
-                            </p>
-
-                            <div className="grid grid-cols-3 gap-2">
-                                {namePlacements.map((placement) => {
+                        <div className="mt-4 grid grid-cols-3 gap-2">
+                            {players.map(
+                                (
+                                    player,
+                                    index
+                                ) => {
                                     const isActive =
-                                        garmentName.placement ===
-                                        placement.id;
+                                        player.id ===
+                                        selectedPlayerId;
 
                                     return (
                                         <button
-                                            key={placement.id}
+                                            key={player.id}
                                             type="button"
-                                            onClick={() => {
-                                                updateGarmentName({
-                                                    placement:
-                                                        placement.id,
-                                                });
-
-                                                setCameraView(
-                                                    placement.cameraView
-                                                );
-                                            }}
-                                            className={`rounded-xl px-2 py-3 text-xs font-black transition ${
+                                            onClick={() =>
+                                                selectPlayer(
+                                                    player.id
+                                                )
+                                            }
+                                            className={`min-w-0 rounded-xl px-2 py-3 text-xs font-black transition ${
                                                 isActive
                                                     ? "bg-zinc-950 text-white"
                                                     : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
                                             }`}
+                                            title={
+                                                player.name ||
+                                                `Player ${index + 1}`
+                                            }
                                         >
-                                            {placement.label}
+                                            <span className="block truncate">
+                                                {player.name ||
+                                                    `Player ${index + 1}`}
+                                            </span>
+
+                                            {player.number ? (
+                                                <span className="mt-1 block text-[10px] opacity-70">
+                                                    #{player.number}
+                                                </span>
+                                            ) : null}
                                         </button>
                                     );
-                                })}
+                                }
+                            )}
+                        </div>
+
+                        {selectedPlayer ? (
+                            <div className="mt-4 space-y-3 rounded-2xl bg-zinc-100 p-4">
+                                <div className="flex items-center justify-between gap-3">
+                                    <p className="text-sm font-black text-zinc-900">
+                                        Edit selected player
+                                    </p>
+
+                                    {players.length > 1 ? (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                removePlayer(
+                                                    selectedPlayer.id
+                                                )
+                                            }
+                                            className="text-xs font-black text-red-600"
+                                        >
+                                            Remove row
+                                        </button>
+                                    ) : null}
+                                </div>
+
+                                <label className="block">
+                                    <span className="mb-2 block text-xs font-bold text-zinc-600">
+                                        Player name
+                                    </span>
+
+                                    <input
+                                        type="text"
+                                        value={selectedPlayer.name}
+                                        maxLength={18}
+                                        placeholder="NAME"
+                                        onChange={(event) =>
+                                            updatePlayer(
+                                                selectedPlayer.id,
+                                                {
+                                                    name:
+                                                        event.target.value.toUpperCase(),
+                                                }
+                                            )
+                                        }
+                                        className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-3 text-sm font-black uppercase text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-950"
+                                    />
+                                </label>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <label className="block">
+                                        <span className="mb-2 block text-xs font-bold text-zinc-600">
+                                            Number
+                                        </span>
+
+                                        <input
+                                            type="text"
+                                            inputMode="numeric"
+                                            value={selectedPlayer.number}
+                                            maxLength={3}
+                                            placeholder="10"
+                                            onChange={(event) =>
+                                                updatePlayer(
+                                                    selectedPlayer.id,
+                                                    {
+                                                        number:
+                                                            event.target.value
+                                                                .replace(
+                                                                    /[^0-9A-Za-z]/g,
+                                                                    ""
+                                                                )
+                                                                .toUpperCase(),
+                                                    }
+                                                )
+                                            }
+                                            className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-3 text-sm font-black text-zinc-950 outline-none transition placeholder:text-zinc-400 focus:border-zinc-950"
+                                        />
+                                    </label>
+
+                                    <label className="block">
+                                        <span className="mb-2 block text-xs font-bold text-zinc-600">
+                                            Size
+                                        </span>
+
+                                        <select
+                                            value={selectedPlayer.size}
+                                            onChange={(event) =>
+                                                updatePlayer(
+                                                    selectedPlayer.id,
+                                                    {
+                                                        size:
+                                                            event.target.value,
+                                                    }
+                                                )
+                                            }
+                                            className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-3 text-sm font-black text-zinc-950 outline-none transition focus:border-zinc-950"
+                                        >
+                                            {sizeOptions.map(
+                                                (size) => (
+                                                    <option
+                                                        key={size}
+                                                        value={size}
+                                                    >
+                                                        {size}
+                                                    </option>
+                                                )
+                                            )}
+                                        </select>
+                                    </label>
+                                </div>
+
+                                <label className="block">
+                                    <span className="mb-2 block text-xs font-bold text-zinc-600">
+                                        Quantity
+                                    </span>
+
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        max={99}
+                                        value={selectedPlayer.quantity}
+                                        onChange={(event) =>
+                                            updatePlayer(
+                                                selectedPlayer.id,
+                                                {
+                                                    quantity:
+                                                        Math.max(
+                                                            1,
+                                                            Number(
+                                                                event.target.value
+                                                            ) || 1
+                                                        ),
+                                                }
+                                            )
+                                        }
+                                        className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-3 text-sm font-black text-zinc-950 outline-none transition focus:border-zinc-950"
+                                    />
+                                </label>
+                            </div>
+                        ) : null}
+
+                        <div className="mt-4">
+                            <p className="mb-2 text-sm font-bold text-zinc-800">
+                                Name placement
+                            </p>
+
+                            <div className="grid grid-cols-3 gap-2">
+                                {namePlacements.map(
+                                    (placement) => {
+                                        const isActive =
+                                            namePlacement ===
+                                            placement.id;
+
+                                        return (
+                                            <button
+                                                key={placement.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    setNamePlacement(
+                                                        placement.id
+                                                    );
+
+                                                    setCameraView(
+                                                        placement.cameraView
+                                                    );
+                                                }}
+                                                className={`rounded-xl px-2 py-3 text-xs font-black transition ${
+                                                    isActive
+                                                        ? "bg-zinc-950 text-white"
+                                                        : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+                                                }`}
+                                            >
+                                                {placement.label}
+                                            </button>
+                                        );
+                                    }
+                                )}
                             </div>
                         </div>
 
                         <label className="mt-4 flex items-center justify-between gap-4 rounded-2xl border border-zinc-200 p-3">
                             <div>
                                 <span className="block text-sm font-bold text-zinc-800">
-                                    Text colour
+                                    Name colour
                                 </span>
 
                                 <span className="font-mono text-xs uppercase text-zinc-500">
-                                    {garmentName.colour}
+                                    {nameColour}
                                 </span>
                             </div>
 
                             <input
                                 type="color"
-                                value={garmentName.colour}
+                                value={nameColour}
                                 onChange={(event) =>
-                                    updateGarmentName({
-                                        colour: event.target.value,
-                                    })
+                                    setNameColour(
+                                        event.target.value
+                                    )
                                 }
                                 className="h-10 w-10 cursor-pointer rounded-xl border-0 bg-transparent p-0"
                                 aria-label="Choose player-name colour"
                             />
                         </label>
 
+                        <button
+                            type="button"
+                            onClick={handleExportJob}
+                            className="mt-4 w-full rounded-2xl bg-zinc-950 px-4 py-4 text-sm font-black text-white transition hover:bg-zinc-800"
+                        >
+                            Done — export test job
+                        </button>
+
+                        {exportMessage ? (
+                            <p className="mt-3 text-xs font-semibold leading-5 text-zinc-600">
+                                {exportMessage}
+                            </p>
+                        ) : null}
+
                         <p className="mt-3 text-xs leading-5 text-zinc-500">
-                            Names can only be placed on either sleeve
-                            or across the upper back.
+                            The selected player is shown on the 3D jersey.
+                            Done exports a JSON design job and a CSV roster
+                            for the Roster Flow test.
                         </p>
                     </div>
 

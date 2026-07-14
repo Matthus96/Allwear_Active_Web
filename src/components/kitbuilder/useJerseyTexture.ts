@@ -215,14 +215,43 @@ function loadImage(
     });
 }
 
+function fitFontSize(
+    context: CanvasRenderingContext2D,
+    text: string,
+    startingSize: number,
+    maximumWidth: number,
+    minimumSize: number
+) {
+    let fontSize = startingSize;
+
+    context.font =
+        `900 ${fontSize}px Arial, sans-serif`;
+
+    while (
+        context.measureText(text).width >
+            maximumWidth &&
+        fontSize > minimumSize
+    ) {
+        fontSize -= 2;
+
+        context.font =
+            `900 ${fontSize}px Arial, sans-serif`;
+    }
+
+    return fontSize;
+}
+
 function drawGarmentName(
     context: CanvasRenderingContext2D,
     garmentName: GarmentName
 ) {
-    const text =
+    const nameText =
         garmentName.text.trim().toUpperCase();
 
-    if (!text) {
+    const numberText =
+        garmentName.number.trim().toUpperCase();
+
+    if (!nameText && !numberText) {
         return;
     }
 
@@ -240,20 +269,15 @@ function drawGarmentName(
     const x =
         canvasWidth * placement.x;
 
-    const y =
+    const nameY =
         canvasHeight * placement.y;
 
-    const maximumWidth =
+    const nameMaximumWidth =
         canvasWidth * placement.maxWidth;
-
-    let fontSize =
-        canvasWidth * placement.fontSize;
-
-    const minimumFontSize = 28;
 
     context.save();
 
-    context.translate(x, y);
+    context.translate(x, nameY);
 
     context.rotate(
         THREE.MathUtils.degToRad(
@@ -265,26 +289,48 @@ function drawGarmentName(
     context.textBaseline = "middle";
     context.fillStyle = garmentName.colour;
 
-    context.font =
-        `900 ${fontSize}px Arial, sans-serif`;
-
-    while (
-        context.measureText(text).width >
-            maximumWidth &&
-        fontSize > minimumFontSize
-    ) {
-        fontSize -= 2;
+    if (nameText) {
+        const nameFontSize = fitFontSize(
+            context,
+            nameText,
+            canvasWidth * placement.fontSize,
+            nameMaximumWidth,
+            28
+        );
 
         context.font =
-            `900 ${fontSize}px Arial, sans-serif`;
+            `900 ${nameFontSize}px Arial, sans-serif`;
+
+        context.fillText(
+            nameText,
+            0,
+            0,
+            nameMaximumWidth
+        );
     }
 
-    context.fillText(
-        text,
-        0,
-        0,
-        maximumWidth
-    );
+    if (numberText) {
+        const numberMaximumWidth =
+            canvasWidth * 0.18;
+
+        const numberFontSize = fitFontSize(
+            context,
+            numberText,
+            canvasWidth * 0.105,
+            numberMaximumWidth,
+            64
+        );
+
+        context.font =
+            `900 ${numberFontSize}px Arial, sans-serif`;
+
+        context.fillText(
+            numberText,
+            0,
+            canvasHeight * 0.07,
+            numberMaximumWidth
+        );
+    }
 
     context.restore();
 }
@@ -509,10 +555,15 @@ useEffect(() => {
             }
         }
 
+    if (
+        garmentName.placement ===
+        "backUpper"
+    ) {
         drawGarmentName(
             context,
             garmentName
         );
+    }
 
         texture.needsUpdate = true;
     }

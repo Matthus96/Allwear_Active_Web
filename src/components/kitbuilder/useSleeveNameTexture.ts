@@ -1,6 +1,9 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import {
+    useEffect,
+    useMemo,
+} from "react";
 import * as THREE from "three";
 
 import type {
@@ -33,15 +36,25 @@ export function useSleeveNameTexture({
     placement,
     uvBounds,
 }: UseSleeveNameTextureParams) {
-    const { canvas, texture } = useMemo(() => {
+    const {
+        canvas,
+        texture,
+    } = useMemo(() => {
         const nextCanvas =
-            document.createElement("canvas");
+            document.createElement(
+                "canvas"
+            );
 
-        nextCanvas.width = TEXTURE_SIZE;
-        nextCanvas.height = TEXTURE_SIZE;
+        nextCanvas.width =
+            TEXTURE_SIZE;
+
+        nextCanvas.height =
+            TEXTURE_SIZE;
 
         const nextTexture =
-            new THREE.CanvasTexture(nextCanvas);
+            new THREE.CanvasTexture(
+                nextCanvas
+            );
 
         nextTexture.colorSpace =
             THREE.SRGBColorSpace;
@@ -54,7 +67,8 @@ export function useSleeveNameTexture({
         nextTexture.wrapT =
             THREE.ClampToEdgeWrapping;
 
-        nextTexture.needsUpdate = true;
+        nextTexture.needsUpdate =
+            true;
 
         return {
             canvas: nextCanvas,
@@ -77,7 +91,8 @@ export function useSleeveNameTexture({
             canvas.height
         );
 
-        context.fillStyle = baseColour;
+        context.fillStyle =
+            baseColour;
 
         context.fillRect(
             0,
@@ -91,89 +106,160 @@ export function useSleeveNameTexture({
                 .trim()
                 .toUpperCase();
 
-        const shouldDrawName =
-            text.length > 0 &&
-            garmentName.placement === placement &&
+        const numberText =
+            garmentName.number
+                .trim()
+                .toUpperCase();
+
+        const shouldDrawPersonalisation =
+            (text.length > 0 ||
+                numberText.length > 0) &&
+            garmentName.placement ===
+                placement &&
             uvBounds !== null;
 
-        if (shouldDrawName && uvBounds) {
+        if (
+            shouldDrawPersonalisation &&
+            uvBounds
+        ) {
             const centreU =
-                (uvBounds.minU + uvBounds.maxU) / 2;
+                (
+                    uvBounds.minU +
+                    uvBounds.maxU
+                ) / 2;
 
             const centreV =
-                (uvBounds.minV + uvBounds.maxV) / 2;
+                (
+                    uvBounds.minV +
+                    uvBounds.maxV
+                ) / 2;
 
             const islandWidth =
                 canvas.width *
-                (uvBounds.maxU - uvBounds.minU);
+                (
+                    uvBounds.maxU -
+                    uvBounds.minU
+                );
 
             const islandHeight =
                 canvas.height *
-                (uvBounds.maxV - uvBounds.minV);
+                (
+                    uvBounds.maxV -
+                    uvBounds.minV
+                );
 
             const x =
-                canvas.width * centreU;
+                canvas.width *
+                centreU;
 
-            // Move the name slightly lower on the sleeve.
             const y =
-                canvas.height * centreV +
-                islandHeight * 0.36;
+                canvas.height *
+                    centreV +
+                islandHeight *
+                    0.36;
 
-            // Keep the name inside a narrower sleeve-safe area.
             const maximumWidth =
-                islandWidth * 0.42;
+                islandWidth *
+                0.42;
 
-            // Use a controlled font size instead of scaling
-            // aggressively from the island height.
-            let fontSize = Math.min(
-                islandHeight * 0.08,
-                72
+            let fontSize =
+                Math.min(
+                    islandHeight *
+                        0.08,
+                    72
+                );
+
+            fontSize =
+                Math.max(
+                    fontSize,
+                    30
+                );
+
+            context.save();
+
+            context.translate(
+                x,
+                y
             );
 
-            fontSize = Math.max(
-                fontSize,
-                30
-            );
+            context.rotate(0);
 
-context.save();
+            context.textAlign =
+                "center";
 
-context.translate(x, y);
+            context.textBaseline =
+                "middle";
 
-// Keep it horizontal until placement is confirmed.
-context.rotate(0);
+            context.fillStyle =
+                garmentName.colour;
 
-context.textAlign = "center";
-context.textBaseline = "middle";
-context.fillStyle =
-    garmentName.colour;
+            if (text) {
+                context.font =
+                    `900 ${fontSize}px Arial, sans-serif`;
 
-context.font =
-    `900 ${fontSize}px Arial, sans-serif`;
+                while (
+                    context
+                        .measureText(text)
+                        .width >
+                        maximumWidth &&
+                    fontSize > 32
+                ) {
+                    fontSize -= 2;
 
-while (
-    context.measureText(text).width >
-        maximumWidth &&
-    fontSize > 32
-) {
-    fontSize -= 2;
+                    context.font =
+                        `900 ${fontSize}px Arial, sans-serif`;
+                }
 
-    context.font =
-        `900 ${fontSize}px Arial, sans-serif`;
-}
+                context.fillText(
+                    text,
+                    0,
+                    0,
+                    maximumWidth
+                );
+            }
 
-context.fillText(
-    text,
-    0,
-    0,
-    maximumWidth
-);
+            if (numberText) {
+                let numberFontSize =
+                    Math.min(
+                        fontSize * 1.25,
+                        88
+                    );
 
-context.restore();
+                const numberMaximumWidth =
+                    islandWidth * 0.32;
+
+                context.font =
+                    `900 ${numberFontSize}px Arial, sans-serif`;
+
+                while (
+                    context
+                        .measureText(numberText)
+                        .width >
+                        numberMaximumWidth &&
+                    numberFontSize > 32
+                ) {
+                    numberFontSize -= 2;
+
+                    context.font =
+                        `900 ${numberFontSize}px Arial, sans-serif`;
+                }
+
+                context.fillText(
+                    numberText,
+                    0,
+                    Math.max(
+                        fontSize * 1.55,
+                        islandHeight * 0.075
+                    ),
+                    numberMaximumWidth
+                );
+            }
 
             context.restore();
         }
 
-        texture.needsUpdate = true;
+        texture.needsUpdate =
+            true;
     }, [
         canvas,
         texture,
