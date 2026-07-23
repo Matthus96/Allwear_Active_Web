@@ -5,6 +5,8 @@ import {
     Databases,
     Functions,
     ID,
+    ImageFormat,
+    ImageGravity,
     Models,
     Query,
     Storage,
@@ -108,7 +110,65 @@ export const teams = new Teams(client);
 
 const avatars = new Avatars(client);
 
-export const getImageUrl = (fileId: string) => {
+export type ImageSize = "thumbnail" | "card" | "detail";
+
+const imagePresets: Record<
+    ImageSize,
+    {
+        width: number;
+        quality: number;
+    }
+> = {
+    thumbnail: {
+        width: 400,
+        quality: 68,
+    },
+    card: {
+        width: 900,
+        quality: 74,
+    },
+    detail: {
+        width: 1600,
+        quality: 80,
+    },
+};
+
+/**
+ * Returns a resized, compressed WebP preview from Appwrite.
+ *
+ * Existing calls such as getImageUrl(fileId) continue to work and now use
+ * the "card" preset. Use "thumbnail" for small lists and "detail" for the
+ * main product image.
+ */
+export const getImageUrl = (
+    fileId: string,
+    size: ImageSize = "card"
+) => {
+    const preset = imagePresets[size];
+
+    return String(
+        storage.getFilePreview(
+            appwriteConfig.bucketId,
+            fileId,
+            preset.width,
+            0,
+            ImageGravity.Center,
+            preset.quality,
+            0,
+            "",
+            0,
+            1,
+            0,
+            "",
+            ImageFormat.Webp
+        )
+    );
+};
+
+/**
+ * Use only when the untouched original file is genuinely required.
+ */
+export const getOriginalImageUrl = (fileId: string) => {
     return String(storage.getFileView(appwriteConfig.bucketId, fileId));
 };
 

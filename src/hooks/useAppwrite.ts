@@ -58,6 +58,12 @@ const useAppwrite = <T, P extends Record<string, any>>({
         [fn]
     );
 
+    console.log("APPWRITE CONFIG", {
+    endpoint: process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT,
+    projectId: process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID,
+    origin: typeof window !== "undefined" ? window.location.origin : "server",
+    });
+
     useEffect(() => {
         if (!skip) {
             fetchData(params);
