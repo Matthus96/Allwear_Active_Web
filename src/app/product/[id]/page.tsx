@@ -30,7 +30,21 @@ import {
 
 import { useCartStore } from "@/store/cart.store";
 
-const SIZES = [
+
+type ProductWithComingSoon = Product & {
+    isComingSoon?: boolean | string;
+    comingSoon?: boolean | string;
+    status?: string;
+};
+
+const normalizeFlagText = (value: unknown) =>
+    typeof value === "string" ? value.trim().toLowerCase() : "";
+
+const normalizeSize = (value: unknown) =>
+    typeof value === "string" ? value.trim().toUpperCase() : "";
+
+const GARMENT_SIZE_ORDER = [
+    "XXS",
     "XS",
     "S",
     "M",
@@ -45,19 +59,59 @@ const SIZES = [
     "8XL",
     "9XL",
     "10XL",
+    "11XL",
+    "12XL",
 ];
 
-type ProductWithComingSoon = Product & {
-    isComingSoon?: boolean | string;
-    comingSoon?: boolean | string;
-    status?: string;
+const isMetricLengthSize = (value: unknown) => {
+    const normalized =
+        typeof value === "string" ? value.trim().toLowerCase() : "";
+
+    return /^\d+(?:\.\d+)?\s*(cm|m)$/.test(normalized);
 };
 
-const normalizeFlagText = (value: unknown) =>
-    typeof value === "string" ? value.trim().toLowerCase() : "";
+const getMetricLengthInCm = (value: string) => {
+    const normalized = value.trim().toLowerCase();
+    const match = normalized.match(/^(\d+(?:\.\d+)?)\s*(cm|m)$/);
 
-const normalizeSize = (value: unknown) =>
-    typeof value === "string" ? value.trim().toUpperCase() : "";
+    if (!match) return null;
+
+    const amount = Number(match[1]);
+
+    if (!Number.isFinite(amount)) return null;
+
+    return match[2] === "m" ? amount * 100 : amount;
+};
+
+const compareInventorySizes = (a: string, b: string) => {
+    const normalizedA = normalizeSize(a);
+    const normalizedB = normalizeSize(b);
+
+    const garmentIndexA = GARMENT_SIZE_ORDER.indexOf(normalizedA);
+    const garmentIndexB = GARMENT_SIZE_ORDER.indexOf(normalizedB);
+
+    if (garmentIndexA !== -1 || garmentIndexB !== -1) {
+        if (garmentIndexA === -1) return 1;
+        if (garmentIndexB === -1) return -1;
+
+        return garmentIndexA - garmentIndexB;
+    }
+
+    const metricA = getMetricLengthInCm(a);
+    const metricB = getMetricLengthInCm(b);
+
+    if (metricA !== null || metricB !== null) {
+        if (metricA === null) return 1;
+        if (metricB === null) return -1;
+
+        return metricA - metricB;
+    }
+
+    return a.localeCompare(b, undefined, {
+        numeric: true,
+        sensitivity: "base",
+    });
+};
 
 const isTruthyFlag = (value: unknown) =>
     value === true ||
@@ -246,22 +300,45 @@ export default function ProductPage() {
         product as ProductWithComingSoon | null
     );
 
-    const availableSizes = useMemo(() => {
+    const sizeOptions = useMemo(() => {
         if (isComingSoon) return [];
 
-        return SIZES.filter((size) => {
-            const sizeInventory = inventory.find(
-                (item) => normalizeSize(item.size) === normalizeSize(size)
-            );
+        const seen = new Set<string>();
+        const options: string[] = [];
 
-            if (!sizeInventory) return false;
-            if (sizeInventory.available === false) return false;
+        inventory.forEach((item) => {
+            const size = String(item.size || "").trim();
+            const normalized = normalizeSize(size);
 
-            return Number(sizeInventory.quantity || 0) > 0;
+            if (!size || !normalized || seen.has(normalized)) {
+                return;
+            }
+
+            seen.add(normalized);
+            options.push(size);
         });
+
+        return options.sort(compareInventorySizes);
     }, [inventory, isComingSoon]);
 
+    const usesLengthSizing = useMemo(() => {
+        return (
+            sizeOptions.length > 0 &&
+            sizeOptions.every((size) => isMetricLengthSize(size))
+        );
+    }, [sizeOptions]);
+
+    const availableSizes = useMemo(() => {
+        return sizeOptions.filter((size) => isSizeAvailable(size));
+    }, [sizeOptions, inventory]);
+
     const firstAvailableSize = availableSizes[0] || "";
+
+    useEffect(() => {
+        if (usesLengthSizing) {
+            setMeasurementOpen(false);
+        }
+    }, [usesLengthSizing]);
 
     useEffect(() => {
         if (isComingSoon) {
@@ -334,7 +411,7 @@ export default function ProductPage() {
         }
 
         if (!selectedSize) {
-            alert("Please select a size.");
+            alert(usesLengthSizing ? "Please select a length." : "Please select a size.");
             return;
         }
 
@@ -475,6 +552,8 @@ export default function ProductPage() {
                         {product.description ||
                             (isComingSoon
                                 ? "This product is still in development and will be available soon. You can view the details now, but ordering is disabled until launch."
+                                : usesLengthSizing
+                                ? "Select your preferred length below to check availability and add this product to your cart."
                                 : "Premium apparel designed for comfort, movement and everyday performance. Select your size below to check availability and add this product to your cart.")}
                     </p>
 
@@ -482,11 +561,11 @@ export default function ProductPage() {
                         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400">
-                                    {isComingSoon ? "Availability" : "Select Size"}
+                                    {isComingSoon ? "Availability" : usesLengthSizing ? "Select Length" : "Select Size"}
                                 </p>
 
                                 <h2 className="mt-1 text-xl font-black text-zinc-950 sm:text-2xl">
-                                    {isComingSoon ? "Coming Soon" : "Choose your fit"}
+                                    {isComingSoon ? "Coming Soon" : usesLengthSizing ? "Choose your length" : "Choose your fit"}
                                 </h2>
                             </div>
 
@@ -505,7 +584,7 @@ export default function ProductPage() {
                         ) : null}
 
                         <div className="grid w-full grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3">
-                            {SIZES.map((size) => {
+                            {sizeOptions.map((size) => {
                                 const active = selectedSize === size;
                                 const available =
                                     !isComingSoon && isSizeAvailable(size);
@@ -526,8 +605,12 @@ export default function ProductPage() {
                                         disabled={!available}
                                         onClick={() => {
                                             if (!available) return;
+
                                             setSelectedSize(size);
-                                            setMeasurementOpen(true);
+
+                                            if (!isMetricLengthSize(size)) {
+                                                setMeasurementOpen(true);
+                                            }
                                         }}
                                         className={`min-h-16 w-full rounded-2xl border px-2 py-2 text-xs font-black transition sm:min-h-20 sm:px-4 sm:text-sm ${
                                             active
@@ -563,7 +646,9 @@ export default function ProductPage() {
                         !inventoryLoading &&
                         availableSizes.length === 0 ? (
                             <p className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
-                                This product is currently sold out.
+                                {usesLengthSizing
+                                    ? "All lengths are currently sold out."
+                                    : "This product is currently sold out."}
                             </p>
                         ) : null}
                     </div>
@@ -598,6 +683,8 @@ export default function ProductPage() {
                                 ? `Add ${selectedSize} to Cart · ${formatPrice(
                                       activePrice
                                   )}`
+                                : usesLengthSizing
+                                ? "Select available length"
                                 : "Select available size"}
                         </button>
 
@@ -651,11 +738,13 @@ export default function ProductPage() {
                 </section>
             ) : null}
 
-            <MeasurementSheet
-                open={measurementOpen}
-                size={selectedSize}
-                onClose={() => setMeasurementOpen(false)}
-            />
+            {!usesLengthSizing ? (
+                <MeasurementSheet
+                    open={measurementOpen}
+                    size={selectedSize}
+                    onClose={() => setMeasurementOpen(false)}
+                />
+            ) : null}
 
             {recentlyViewedProducts.length > 0 ? (
                 <section className="mx-auto w-full max-w-7xl px-4 pb-12 sm:px-6 lg:pb-16">
