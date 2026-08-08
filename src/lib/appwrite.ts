@@ -46,15 +46,12 @@ export type Product = Models.Document & {
 };
 
 export type ProductInventory = Models.Document & {
-    productId: string;
+    productId?: string;
     productName?: string;
     range?: string;
     size: string;
     quantity: number;
     available?: boolean;
-
-    // Appwrite currently stores inventory price as a string.
-    // Number is also allowed so the column can be migrated later.
     price?: string | number | null;
 };
 
@@ -203,7 +200,10 @@ const attachInventoryToProduct = async (
     product: Product
 ): Promise<Product> => {
     try {
-        const inventory = await getProductInventory(product.$id);
+        const inventory = await getProductInventory(
+            product.$id,
+            product.range
+        );
 
         const sizes = inventory
             .filter((item) => isInventoryAvailable(item))
@@ -318,16 +318,45 @@ export const getCategories = async (): Promise<Category[]> => {
 };
 
 export const getProductInventory = async (
-    productId: string
+    productId: string,
+    range?: string
 ): Promise<ProductInventory[]> => {
-    try {
-        const res = await databases.listDocuments(
-            appwriteConfig.databaseId,
-            appwriteConfig.productInventoryCollectionId,
-            [Query.equal("productId", productId)]
-        );
+    const cleanProductId = String(productId || "").trim();
+    const cleanRange = String(range || "").trim();
 
-        return res.documents as unknown as ProductInventory[];
+    try {
+        // New inventory structure: range is the primary join key.
+        if (cleanRange) {
+            const byRange = await databases.listDocuments(
+                appwriteConfig.databaseId,
+                appwriteConfig.productInventoryCollectionId,
+                [Query.equal("range", cleanRange)]
+            );
+
+            if (byRange.documents.length > 0) {
+                return byRange.documents as unknown as ProductInventory[];
+            }
+        }
+
+        // Legacy fallback: older inventory rows may still use productId.
+        if (cleanProductId) {
+            try {
+                const byProductId = await databases.listDocuments(
+                    appwriteConfig.databaseId,
+                    appwriteConfig.productInventoryCollectionId,
+                    [Query.equal("productId", cleanProductId)]
+                );
+
+                return byProductId.documents as unknown as ProductInventory[];
+            } catch (legacyError) {
+                console.log(
+                    "LEGACY PRODUCT INVENTORY LOOKUP SKIPPED:",
+                    legacyError
+                );
+            }
+        }
+
+        return [];
     } catch (e: any) {
         console.log("GET PRODUCT INVENTORY ERROR:", e);
         throw new Error(e?.message || "Could not fetch product inventory.");

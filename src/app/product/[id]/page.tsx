@@ -162,7 +162,10 @@ export default function ProductPage() {
                      * Keep the existing inventory relationship:
                      * product_inventory.productId -> menu.$id
                      */
-                    const inventoryData = await getProductInventory(productData.$id);
+                    const inventoryData = await getProductInventory(
+                        productData.$id,
+                        productData.range
+                    );
 
                     if (!cancelled) {
                         setInventory(inventoryData);
