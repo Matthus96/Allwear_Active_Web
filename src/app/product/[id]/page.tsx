@@ -30,7 +30,22 @@ import {
 
 import { useCartStore } from "@/store/cart.store";
 
-const SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"];
+const SIZES = [
+    "XS",
+    "S",
+    "M",
+    "L",
+    "XL",
+    "2XL",
+    "3XL",
+    "4XL",
+    "5XL",
+    "6XL",
+    "7XL",
+    "8XL",
+    "9XL",
+    "10XL",
+];
 
 type ProductWithComingSoon = Product & {
     isComingSoon?: boolean | string;
@@ -40,6 +55,9 @@ type ProductWithComingSoon = Product & {
 
 const normalizeFlagText = (value: unknown) =>
     typeof value === "string" ? value.trim().toLowerCase() : "";
+
+const normalizeSize = (value: unknown) =>
+    typeof value === "string" ? value.trim().toUpperCase() : "";
 
 const isTruthyFlag = (value: unknown) =>
     value === true ||
@@ -73,6 +91,20 @@ const normalizeCategories = (categories?: string | string[]) => {
     return [String(categories)];
 };
 
+const toValidPrice = (value: unknown) => {
+    if (value === null || value === undefined || value === "") {
+        return null;
+    }
+
+    const parsed = Number(value);
+
+    if (!Number.isFinite(parsed) || parsed < 0) {
+        return null;
+    }
+
+    return parsed;
+};
+
 export default function ProductPage() {
     const params = useParams<{ id: string }>();
     const productId = params.id;
@@ -84,7 +116,7 @@ export default function ProductPage() {
 
     const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
     const [recentlyViewedProducts, setRecentlyViewedProducts] = useState<Product[]>(
-    []
+        []
     );
 
     const [selectedSize, setSelectedSize] = useState("");
@@ -96,6 +128,8 @@ export default function ProductPage() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        let cancelled = false;
+
         const fetchProduct = async () => {
             try {
                 setLoading(true);
@@ -103,11 +137,13 @@ export default function ProductPage() {
                 setError(null);
 
                 const productData = await getMenuById({ id: productId });
+
+                if (cancelled) return;
+
                 const currentProduct = productData as ProductWithComingSoon;
                 const productComingSoon = isProductComingSoon(currentProduct);
 
                 setProduct(productData as Product);
-
                 setIsWishlisted(isProductInWishlist(productData.$id));
 
                 saveRecentlyViewedProduct(productData as Product);
@@ -122,11 +158,20 @@ export default function ProductPage() {
                     setInventory([]);
                     setSelectedSize("");
                 } else {
-                    const inventoryData = await getProductInventory(productId);
-                    setInventory(inventoryData);
+                    /*
+                     * Keep the existing inventory relationship:
+                     * product_inventory.productId -> menu.$id
+                     */
+                    const inventoryData = await getProductInventory(productData.$id);
+
+                    if (!cancelled) {
+                        setInventory(inventoryData);
+                    }
                 }
 
                 const allProducts = await getMenu({});
+
+                if (cancelled) return;
 
                 const currentCategories = normalizeCategories(
                     productData.categories
@@ -156,24 +201,32 @@ export default function ProductPage() {
 
                 setSimilarProducts(recommendedProducts);
             } catch (e: any) {
-                setError(e?.message || "Could not load product.");
+                if (!cancelled) {
+                    setError(e?.message || "Could not load product.");
+                    setInventory([]);
+                }
             } finally {
-                setLoading(false);
-                setInventoryLoading(false);
+                if (!cancelled) {
+                    setLoading(false);
+                    setInventoryLoading(false);
+                }
             }
         };
 
         if (productId) {
             fetchProduct();
         }
+
+        return () => {
+            cancelled = true;
+        };
     }, [productId]);
 
     const getSizeInventory = (size: string) => {
+        const normalized = normalizeSize(size);
+
         return inventory.find(
-            (item) =>
-                String(item.size || "")
-                    .trim()
-                    .toUpperCase() === size.toUpperCase()
+            (item) => normalizeSize(item.size) === normalized
         );
     };
 
@@ -193,7 +246,16 @@ export default function ProductPage() {
     const availableSizes = useMemo(() => {
         if (isComingSoon) return [];
 
-        return SIZES.filter((size) => isSizeAvailable(size));
+        return SIZES.filter((size) => {
+            const sizeInventory = inventory.find(
+                (item) => normalizeSize(item.size) === normalizeSize(size)
+            );
+
+            if (!sizeInventory) return false;
+            if (sizeInventory.available === false) return false;
+
+            return Number(sizeInventory.quantity || 0) > 0;
+        });
     }, [inventory, isComingSoon]);
 
     const firstAvailableSize = availableSizes[0] || "";
@@ -209,17 +271,55 @@ export default function ProductPage() {
             return;
         }
 
-        if (selectedSize && !isSizeAvailable(selectedSize)) {
+        if (
+            selectedSize &&
+            !availableSizes.some(
+                (size) => normalizeSize(size) === normalizeSize(selectedSize)
+            )
+        ) {
             setSelectedSize(firstAvailableSize);
         }
-    }, [firstAvailableSize, selectedSize, isComingSoon, inventory]);
+    }, [firstAvailableSize, selectedSize, isComingSoon, availableSizes]);
+
+    const selectedInventory = useMemo(() => {
+        if (!selectedSize) return undefined;
+
+        return inventory.find(
+            (item) =>
+                normalizeSize(item.size) === normalizeSize(selectedSize)
+        );
+    }, [inventory, selectedSize]);
+
+    const basePrice = useMemo(
+        () => toValidPrice(product?.price) ?? 0,
+        [product?.price]
+    );
+
+    const selectedInventoryPrice = useMemo(
+        () => toValidPrice(selectedInventory?.price),
+        [selectedInventory]
+    );
+
+    /*
+     * Size price wins.
+     * If a legacy inventory row does not yet have a price, menu.price remains
+     * the safe fallback so existing products do not suddenly become unbuyable.
+     */
+    const activePrice =
+        selectedInventoryPrice !== null
+            ? selectedInventoryPrice
+            : basePrice;
 
     const selectedSizeAvailable = selectedSize
         ? isSizeAvailable(selectedSize)
         : false;
 
     const canAddToCart = Boolean(
-        product && !isComingSoon && selectedSizeAvailable
+        product &&
+            !isComingSoon &&
+            selectedSizeAvailable &&
+            Number.isFinite(activePrice) &&
+            activePrice >= 0
     );
 
     const handleAddToCart = () => {
@@ -240,6 +340,10 @@ export default function ProductPage() {
             return;
         }
 
+        const sizeInventory = getSizeInventory(selectedSize);
+        const inventoryPrice = toValidPrice(sizeInventory?.price);
+        const finalPrice = inventoryPrice !== null ? inventoryPrice : basePrice;
+
         addItem({
             id: `${product.$id}-${selectedSize}`,
             productId: product.$id,
@@ -247,12 +351,12 @@ export default function ProductPage() {
             quantity: 1,
             stockSnapshot: {
                 name: product.name ?? "Unknown item",
-                price: product.price ?? 0,
+                price: finalPrice,
                 image_url: product.image_url ?? "",
             },
         });
 
-        alert("Added to cart");
+        alert(`Added ${selectedSize} to cart at ${formatPrice(finalPrice)}`);
     };
 
     if (loading) {
@@ -344,7 +448,6 @@ export default function ProductPage() {
                 </div>
 
                 <div className="min-w-0 overflow-hidden">
-
                     <h1 className="mt-4 max-w-full break-words text-3xl font-black leading-tight tracking-tight text-zinc-950 sm:text-4xl md:text-6xl">
                         {product.name}
                     </h1>
@@ -353,11 +456,15 @@ export default function ProductPage() {
                         <p className="rounded-full bg-zinc-950 px-5 py-3 text-xl font-black text-white sm:text-2xl">
                             {isComingSoon
                                 ? "Coming Soon"
-                                : formatPrice(product.price)}
+                                : formatPrice(activePrice)}
                         </p>
 
                         <p className="rounded-full bg-zinc-100 px-5 py-3 text-xs font-black text-zinc-600 sm:text-sm">
-                            {isComingSoon ? "In Development" : "Online Store"}
+                            {isComingSoon
+                                ? "In Development"
+                                : selectedSize
+                                ? `${selectedSize} price`
+                                : "Online Store"}
                         </p>
                     </div>
 
@@ -403,6 +510,11 @@ export default function ProductPage() {
                                 const quantity = Number(
                                     sizeInventory?.quantity || 0
                                 );
+                                const rowPrice = toValidPrice(
+                                    sizeInventory?.price
+                                );
+                                const displaySizePrice =
+                                    rowPrice !== null ? rowPrice : basePrice;
 
                                 return (
                                     <button
@@ -414,7 +526,7 @@ export default function ProductPage() {
                                             setSelectedSize(size);
                                             setMeasurementOpen(true);
                                         }}
-                                        className={`min-h-14 w-full rounded-2xl border px-2 py-2 text-xs font-black transition sm:min-h-16 sm:px-4 sm:text-sm ${
+                                        className={`min-h-16 w-full rounded-2xl border px-2 py-2 text-xs font-black transition sm:min-h-20 sm:px-4 sm:text-sm ${
                                             active
                                                 ? "border-[#6FC276] bg-[#6FC276] text-white shadow-md"
                                                 : available
@@ -425,9 +537,15 @@ export default function ProductPage() {
                                         <span>{size}</span>
 
                                         {available ? (
-                                            <span className="mt-1 block text-[10px] font-bold opacity-70">
-                                                {quantity} left
-                                            </span>
+                                            <>
+                                                <span className="mt-1 block text-[10px] font-bold opacity-80">
+                                                    {formatPrice(displaySizePrice)}
+                                                </span>
+
+                                                <span className="mt-1 block text-[10px] font-bold opacity-70">
+                                                    {quantity} left
+                                                </span>
+                                            </>
                                         ) : (
                                             <span className="mt-1 block text-[10px] font-bold no-underline">
                                                 Sold out
@@ -474,7 +592,9 @@ export default function ProductPage() {
                             {isComingSoon
                                 ? "Coming Soon"
                                 : selectedSizeAvailable
-                                ? `Add ${selectedSize} to Cart +`
+                                ? `Add ${selectedSize} to Cart · ${formatPrice(
+                                      activePrice
+                                  )}`
                                 : "Select available size"}
                         </button>
 
@@ -498,7 +618,7 @@ export default function ProductPage() {
                     </div>
                 </div>
             </section>
-            
+
             {similarProducts.length > 0 ? (
                 <section className="mx-auto w-full max-w-7xl px-4 pb-12 sm:px-6 lg:pb-16">
                     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">

@@ -22,6 +22,7 @@ export type ProductSize = {
     size: string;
     quantity: number;
     available: boolean;
+    price?: number;
 };
 
 export type Product = Models.Document & {
@@ -51,6 +52,10 @@ export type ProductInventory = Models.Document & {
     size: string;
     quantity: number;
     available?: boolean;
+
+    // Appwrite currently stores inventory price as a string.
+    // Number is also allowed so the column can be migrated later.
+    price?: string | number | null;
 };
 
 export type Coupon = Models.Document & {
@@ -202,12 +207,24 @@ const attachInventoryToProduct = async (
 
         const sizes = inventory
             .filter((item) => isInventoryAvailable(item))
-            .map((item) => ({
-                label: item.size,
-                size: item.size,
-                quantity: Number(item.quantity || 0),
-                available: true,
-            }))
+            .map((item) => {
+                const parsedPrice =
+                    item.price === null ||
+                    item.price === undefined ||
+                    item.price === ""
+                        ? undefined
+                        : Number(item.price);
+
+                return {
+                    label: item.size,
+                    size: item.size,
+                    quantity: Number(item.quantity || 0),
+                    available: true,
+                    price: Number.isFinite(parsedPrice)
+                        ? parsedPrice
+                        : undefined,
+                };
+            })
             .sort((a, b) =>
                 a.size.localeCompare(b.size, undefined, {
                     numeric: true,
