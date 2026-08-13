@@ -531,7 +531,11 @@ export default function ProductPage() {
                         {product.name}
                     </h1>
 
-                    {isLimitedEdition ? (
+                    {isComingSoon ? (
+                        <div className="mt-4 inline-flex rounded-full bg-zinc-950 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-white">
+                            Coming Soon
+                        </div>
+                    ) : isLimitedEdition ? (
                         <div className="mt-4 inline-flex rounded-full bg-red-600 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-white">
                             {Number.isFinite(limitedEditionUnits) && limitedEditionUnits > 0
                                 ? `Limited Edition · Only ${limitedEditionUnits} made`

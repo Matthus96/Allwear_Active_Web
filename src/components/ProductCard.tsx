@@ -10,13 +10,24 @@ type Product = {
     description?: string;
     backImage?: string;
     categories?: string | string[];
-    isComingSoon?: boolean;
+    isComingSoon?: boolean | string;
+    comingSoon?: boolean | string;
+    status?: string;
     isLimitedEdition?: boolean | string;
     limitedEditionUnits?: number | string;
     sizes?: Array<{ quantity: number; available?: boolean }>;
 };
 
 export default function ProductCard({ item }: { item: Product }) {
+    const normalizedStatus = String(item.status || "").trim().toLowerCase();
+    const isComingSoon =
+        item.isComingSoon === true ||
+        item.comingSoon === true ||
+        ["true", "yes"].includes(
+            String(item.isComingSoon || item.comingSoon).trim().toLowerCase()
+        ) ||
+        normalizedStatus === "coming soon" ||
+        normalizedStatus === "coming-soon";
     const isLimitedEdition =
         item.isLimitedEdition === true ||
         String(item.isLimitedEdition).trim().toLowerCase() === "true" ||
@@ -41,7 +52,11 @@ export default function ProductCard({ item }: { item: Product }) {
                         className="h-full w-full object-contain transition duration-500 group-hover:scale-105"
                     />
 
-                    {isLimitedEdition ? (
+                    {isComingSoon ? (
+                        <p className="absolute left-2.5 top-2.5 rounded-full bg-zinc-950 px-3 py-1.5 text-[9px] font-black uppercase tracking-wide text-white shadow-sm sm:text-[10px]">
+                            Coming Soon
+                        </p>
+                    ) : isLimitedEdition ? (
                         <p className="absolute left-2.5 top-2.5 rounded-full bg-red-600 px-3 py-1.5 text-[9px] font-black uppercase tracking-wide text-white shadow-sm sm:text-[10px]">
                             {Number.isFinite(limitedUnits) && limitedUnits > 0
                                 ? `Limited Edition · ${limitedUnits} made`
@@ -93,7 +108,7 @@ export default function ProductCard({ item }: { item: Product }) {
             From
         </p>
 
-            {item.isComingSoon
+            {isComingSoon
                 ? "Coming Soon"
                 : new Intl.NumberFormat("en-ZA", {
                     style: "currency",
