@@ -37,6 +37,9 @@ export default function Footer() {
                         <Link href="/orders" className="transition hover:text-white">
                             Orders
                         </Link>
+                        <Link href="/size-guide" className="transition hover:text-white">
+                            Size Guide
+                        </Link>
                     </div>
                 </div>
 

@@ -13,6 +13,7 @@ const routes = [
     "/register",
     "/account",
     "/wishlist",
+    "/size-guide",
     "/business",
     "/distributor",
 ];

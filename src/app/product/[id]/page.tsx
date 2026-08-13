@@ -6,7 +6,6 @@ import Link from "next/link";
 
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import MeasurementSheet from "@/components/MeasurementSheet";
 import ProductImageCarousel from "@/components/ProductImageCarousel";
 import ProductCard from "@/components/ProductCard";
 
@@ -36,6 +35,11 @@ type ProductWithComingSoon = Product & {
     comingSoon?: boolean | string;
     status?: string;
 };
+
+const isLimitedEditionProduct = (item: Product | null) =>
+    item?.isLimitedEdition === true ||
+    normalizeFlagText(item?.isLimitedEdition) === "true" ||
+    normalizeFlagText(item?.isLimitedEdition) === "yes";
 
 const normalizeFlagText = (value: unknown) =>
     typeof value === "string" ? value.trim().toLowerCase() : "";
@@ -174,7 +178,6 @@ export default function ProductPage() {
     );
 
     const [selectedSize, setSelectedSize] = useState("");
-    const [measurementOpen, setMeasurementOpen] = useState(false);
     const [isWishlisted, setIsWishlisted] = useState(false);
 
     const [loading, setLoading] = useState(true);
@@ -299,6 +302,8 @@ export default function ProductPage() {
     const isComingSoon = isProductComingSoon(
         product as ProductWithComingSoon | null
     );
+    const isLimitedEdition = isLimitedEditionProduct(product);
+    const limitedEditionUnits = Number(product?.limitedEditionUnits);
 
     const sizeOptions = useMemo(() => {
         if (isComingSoon) return [];
@@ -333,12 +338,6 @@ export default function ProductPage() {
     }, [sizeOptions, inventory]);
 
     const firstAvailableSize = availableSizes[0] || "";
-
-    useEffect(() => {
-        if (usesLengthSizing) {
-            setMeasurementOpen(false);
-        }
-    }, [usesLengthSizing]);
 
     useEffect(() => {
         if (isComingSoon) {
@@ -532,6 +531,14 @@ export default function ProductPage() {
                         {product.name}
                     </h1>
 
+                    {isLimitedEdition ? (
+                        <div className="mt-4 inline-flex rounded-full bg-zinc-950 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-white">
+                            {Number.isFinite(limitedEditionUnits) && limitedEditionUnits > 0
+                                ? `Limited Edition · Only ${limitedEditionUnits} made`
+                                : "Limited Edition"}
+                        </div>
+                    ) : null}
+
                     <div className="mt-5 flex flex-wrap items-center gap-3">
                         <p className="rounded-full bg-zinc-950 px-5 py-3 text-xl font-black text-white sm:text-2xl">
                             {isComingSoon
@@ -592,6 +599,7 @@ export default function ProductPage() {
                                 const quantity = Number(
                                     sizeInventory?.quantity || 0
                                 );
+                                const isLowStock = quantity > 0 && quantity < 10;
                                 const rowPrice = toValidPrice(
                                     sizeInventory?.price
                                 );
@@ -607,10 +615,6 @@ export default function ProductPage() {
                                             if (!available) return;
 
                                             setSelectedSize(size);
-
-                                            if (!isMetricLengthSize(size)) {
-                                                setMeasurementOpen(true);
-                                            }
                                         }}
                                         className={`min-h-16 w-full rounded-2xl border px-2 py-2 text-xs font-black transition sm:min-h-20 sm:px-4 sm:text-sm ${
                                             active
@@ -628,9 +632,11 @@ export default function ProductPage() {
                                                     {formatPrice(displaySizePrice)}
                                                 </span>
 
-                                                <span className="mt-1 block text-[10px] font-bold opacity-70">
-                                                    {quantity} left
-                                                </span>
+                                                {isLowStock ? (
+                                                    <span className="mt-1 block text-[10px] font-black text-amber-700">
+                                                        Low stock
+                                                    </span>
+                                                ) : null}
                                             </>
                                         ) : (
                                             <span className="mt-1 block text-[10px] font-bold no-underline">
@@ -641,6 +647,15 @@ export default function ProductPage() {
                                 );
                             })}
                         </div>
+
+                        {!isComingSoon && !usesLengthSizing ? (
+                            <Link
+                                href="/size-guide"
+                                className="mt-4 inline-flex text-sm font-black text-zinc-950 underline decoration-[#6FC276] decoration-2 underline-offset-4 transition hover:text-[#3f9448]"
+                            >
+                                View the full size guide →
+                            </Link>
+                        ) : null}
 
                         {!isComingSoon &&
                         !inventoryLoading &&
@@ -736,14 +751,6 @@ export default function ProductPage() {
                         ))}
                     </div>
                 </section>
-            ) : null}
-
-            {!usesLengthSizing ? (
-                <MeasurementSheet
-                    open={measurementOpen}
-                    size={selectedSize}
-                    onClose={() => setMeasurementOpen(false)}
-                />
             ) : null}
 
             {recentlyViewedProducts.length > 0 ? (
