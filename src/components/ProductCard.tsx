@@ -11,9 +11,24 @@ type Product = {
     backImage?: string;
     categories?: string | string[];
     isComingSoon?: boolean;
+    isLimitedEdition?: boolean | string;
+    limitedEditionUnits?: number | string;
+    sizes?: Array<{ quantity: number; available?: boolean }>;
 };
 
 export default function ProductCard({ item }: { item: Product }) {
+    const isLimitedEdition =
+        item.isLimitedEdition === true ||
+        String(item.isLimitedEdition).trim().toLowerCase() === "true" ||
+        String(item.isLimitedEdition).trim().toLowerCase() === "yes";
+    const limitedUnits = Number(item.limitedEditionUnits);
+    const availableStock = (item.sizes || []).reduce(
+        (total, size) =>
+            size.available === false ? total : total + Number(size.quantity || 0),
+        0
+    );
+    const isLowStock = availableStock > 0 && availableStock < 10;
+
     return (
         <article className="group flex h-full min-w-0 flex-col overflow-hidden rounded-[1.5rem] border border-zinc-100 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl">
             <Link href={`/product/${item.$id}`} className="block">
@@ -21,8 +36,22 @@ export default function ProductCard({ item }: { item: Product }) {
                     <img
                         src={item.image_url}
                         alt={item.name}
+                        loading="lazy"
+                        decoding="async"
                         className="h-full w-full object-contain transition duration-500 group-hover:scale-105"
                     />
+
+                    {isLimitedEdition ? (
+                        <p className="absolute left-2.5 top-2.5 rounded-full bg-zinc-950 px-3 py-1.5 text-[9px] font-black uppercase tracking-wide text-white shadow-sm sm:text-[10px]">
+                            {Number.isFinite(limitedUnits) && limitedUnits > 0
+                                ? `Limited Edition · ${limitedUnits} made`
+                                : "Limited Edition"}
+                        </p>
+                    ) : isLowStock ? (
+                        <p className="absolute left-2.5 top-2.5 rounded-full bg-amber-500 px-3 py-1.5 text-[9px] font-black uppercase tracking-wide text-white shadow-sm sm:text-[10px]">
+                            Low stock
+                        </p>
+                    ) : null}
 
                     <div className="absolute bottom-2.5 right-2.5 rounded-full bg-[#6FC276] px-2.5 py-1.5 text-[9px] font-black uppercase tracking-wide text-white shadow-sm sm:text-[10px]">
                         View

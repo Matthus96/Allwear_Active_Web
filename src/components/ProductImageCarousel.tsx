@@ -72,6 +72,8 @@ export default function ProductImageCarousel({
                 <img
                     src={activeImage.url}
                     alt={`${activeImage.label}`}
+                    decoding="async"
+                    fetchPriority="high"
                     className="block max-h-full max-w-full object-contain object-center transition duration-300"
                 />
 
@@ -117,6 +119,8 @@ export default function ProductImageCarousel({
                                 <img
                                     src={image.url}
                                     alt={`${image.label} thumbnail`}
+                                    loading="lazy"
+                                    decoding="async"
                                     className="block max-h-full max-w-full object-contain object-center"
                                 />
                             </button>
