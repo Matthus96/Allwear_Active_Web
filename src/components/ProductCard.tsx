@@ -103,18 +103,18 @@ export default function ProductCard({ item }: { item: Product }) {
         </p>
     )}
 
-    <div className="mt-2">
-        <p className="text-[12px] font-bold uppercase leading-none tracking-wide text-green-600">
-            From
-        </p>
+    {!isComingSoon ? (
+        <div className="mt-2">
+            <p className="text-[12px] font-bold uppercase leading-none tracking-wide text-green-600">
+                From
+            </p>
 
-            {isComingSoon
-                ? "Coming Soon"
-                : new Intl.NumberFormat("en-ZA", {
-                    style: "currency",
-                    currency: "ZAR",
-                }).format(item.price)}
-                </div>
+            {new Intl.NumberFormat("en-ZA", {
+                style: "currency",
+                currency: "ZAR",
+            }).format(item.price)}
+        </div>
+    ) : null}
             </div>
         </article>
     );
