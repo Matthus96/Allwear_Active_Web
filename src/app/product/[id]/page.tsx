@@ -554,7 +554,7 @@ export default function ProductPage() {
                             {isComingSoon
                                 ? "In Development"
                                 : selectedSize
-                                ? `${selectedSize} price`
+                                ? `${selectedSize}`
                                 : "Online Store"}
                         </p>
                     </div>
