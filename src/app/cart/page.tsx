@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
@@ -23,7 +23,6 @@ export default function CartPage() {
     const removeItem = useCartStore((s) => s.removeItem);
 
     const router = useRouter();
-    const searchParams = useSearchParams();
 
     const user = useAuthStore((state) => state.user);
     const authLoading = useAuthStore((state) => state.loading);
@@ -99,20 +98,33 @@ export default function CartPage() {
         setCouponDiscount(0);
         setAppliedCoupon(null);
 
-        const params = new URLSearchParams(searchParams.toString());
-        params.delete("coupon");
+        autoCouponAttemptedRef.current = false;
 
-        const query = params.toString();
+        if (typeof window !== "undefined") {
+            const params = new URLSearchParams(
+                window.location.search
+            );
 
-        router.replace(query ? `/cart?${query}` : "/cart");
+            params.delete("coupon");
+
+            const query = params.toString();
+
+            router.replace(
+                query ? `/cart?${query}` : "/cart"
+            );
+        }
     };
 
     useEffect(() => {
-        const couponFromUrl = searchParams.get("coupon");
+        if (typeof window === "undefined") return;
+
+        const params = new URLSearchParams(
+            window.location.search
+        );
+
+        const couponFromUrl = params.get("coupon");
 
         if (!couponFromUrl) return;
-
-        if (autoCouponAttemptedRef.current) return;
 
         const normalizedCoupon = couponFromUrl
             .trim()
@@ -120,55 +132,21 @@ export default function CartPage() {
 
         if (!normalizedCoupon) return;
 
-        /*
-         * Don't attempt coupon validation against an empty cart.
-         *
-         * This matters if someone scans a QR code before adding
-         * the relevant product.
-         */
+        setCouponCode(normalizedCoupon);
+
         if (items.length === 0) {
-            setCouponCode(normalizedCoupon);
             setCouponMessage(
                 "Coupon ready. Add an item to your cart to apply it."
             );
-
             return;
         }
 
-        autoCouponAttemptedRef.current = true;
-
-        applyCoupon(normalizedCoupon);
-    }, [searchParams, items.length]);
-
-    useEffect(() => {
-        /*
-         * If the coupon came from the URL while the cart was empty,
-         * apply it automatically as soon as an item appears.
-         */
-        const couponFromUrl = searchParams.get("coupon");
-
-        if (!couponFromUrl) return;
-
-        if (items.length === 0) return;
-
-        if (appliedCoupon) return;
-
         if (autoCouponAttemptedRef.current) return;
 
-        const normalizedCoupon = couponFromUrl
-            .trim()
-            .toUpperCase();
-
-        if (!normalizedCoupon) return;
-
         autoCouponAttemptedRef.current = true;
 
         applyCoupon(normalizedCoupon);
-    }, [
-        items.length,
-        searchParams,
-        appliedCoupon,
-    ]);
+    }, [items.length]);
 
     const handlePayNow = async () => {
         if (loading || lockRef.current) return;
