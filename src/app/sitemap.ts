@@ -6,6 +6,7 @@ const siteUrl =
 const routes = [
     "",
     "/shop",
+    "/sale",
     "/product",
     "/cart",
     "/checkout",

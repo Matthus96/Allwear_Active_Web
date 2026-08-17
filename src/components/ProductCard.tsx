@@ -33,7 +33,6 @@ export default function ProductCard({ item }: { item: Product }) {
         item.isLimitedEdition === true ||
         String(item.isLimitedEdition).trim().toLowerCase() === "true" ||
         String(item.isLimitedEdition).trim().toLowerCase() === "yes";
-    const limitedUnits = Number(item.limitedEditionUnits);
     const availableStock = (item.sizes || []).reduce(
         (total, size) =>
             size.available === false ? total : total + Number(size.quantity || 0),
@@ -69,10 +68,8 @@ export default function ProductCard({ item }: { item: Product }) {
                                 Coming Soon
                             </p>
                         ) : isLimitedEdition ? (
-                            <p className="rounded-full bg-red-600 px-3 py-1.5 text-[9px] font-black uppercase tracking-wide text-white shadow-sm sm:text-[10px]">
-                                {Number.isFinite(limitedUnits) && limitedUnits > 0
-                                    ? `Limited Edition · ${limitedUnits} made`
-                                    : "Limited Edition"}
+                            <p className="rounded-full bg-zinc-950 px-3 py-1.5 text-[9px] font-black uppercase tracking-wide text-white shadow-sm sm:text-[10px]">
+                                Limited Edition
                             </p>
                         ) : isLowStock ? (
                             <p className="rounded-full bg-amber-500 px-3 py-1.5 text-[9px] font-black uppercase tracking-wide text-white shadow-sm sm:text-[10px]">

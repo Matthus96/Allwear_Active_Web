@@ -213,6 +213,7 @@ function ShopContent() {
     const query = searchParams.get("query") || "";
     const selectedSize = searchParams.get("size") || "";
     const selectedStyle = searchParams.get("style") || "";
+    const saleOnly = searchParams.get("sale") === "true";
 
     const [searchValue, setSearchValue] = useState(query);
     const [products, setProducts] = useState<ProductWithFilters[]>([]);
@@ -335,28 +336,38 @@ function ShopContent() {
         });
     }, [products, activeCategory]);
 
+    const saleMatchedProducts = useMemo(() => {
+        if (!saleOnly) return categoryMatchedProducts;
+
+        return categoryMatchedProducts.filter((product) => {
+            const salePercentage = Number(product.salePercentage);
+
+            return Number.isFinite(salePercentage) && salePercentage > 0;
+        });
+    }, [categoryMatchedProducts, saleOnly]);
+
     const sizeOptions = useMemo(() => {
-        const sizes = categoryMatchedProducts.flatMap((item) =>
+        const sizes = saleMatchedProducts.flatMap((item) =>
             getProductSizes(item)
         );
 
         return Array.from(new Set(sizes)).sort((a, b) =>
             a.localeCompare(b, undefined, { numeric: true })
         );
-    }, [categoryMatchedProducts]);
+    }, [saleMatchedProducts]);
 
     const styleOptions = useMemo(() => {
-        const styles = categoryMatchedProducts.flatMap((item) =>
+        const styles = saleMatchedProducts.flatMap((item) =>
             getProductStyles(item)
         );
 
         return Array.from(new Set(styles)).sort((a, b) =>
             a.localeCompare(b, undefined, { numeric: true })
         );
-    }, [categoryMatchedProducts]);
+    }, [saleMatchedProducts]);
 
     const filteredProducts = useMemo(() => {
-        return categoryMatchedProducts.filter((product) => {
+        return saleMatchedProducts.filter((product) => {
             const item = product as ProductWithFilters;
 
             const matchesSize = hasSelectedFilterValue(
@@ -371,18 +382,20 @@ function ShopContent() {
 
             return matchesSize && matchesStyle;
         });
-    }, [categoryMatchedProducts, selectedSize, selectedStyle]);
+    }, [saleMatchedProducts, selectedSize, selectedStyle]);
 
     const updateShopRoute = ({
         categoryId,
         searchQuery,
         size,
         style,
+        sale,
     }: {
         categoryId?: string;
         searchQuery?: string;
         size?: string;
         style?: string;
+        sale?: boolean;
     }) => {
         const params = new URLSearchParams();
 
@@ -390,6 +403,7 @@ function ShopContent() {
         if (categoryId) params.set("category", categoryId);
         if (size) params.set("size", size);
         if (style) params.set("style", style);
+        if (sale) params.set("sale", "true");
 
         router.push(`/shop${params.toString() ? `?${params}` : ""}`, {
             scroll: false,
@@ -402,6 +416,7 @@ function ShopContent() {
             searchQuery: query,
             size: selectedSize,
             style: selectedStyle,
+            sale: saleOnly,
         });
     };
 
@@ -411,6 +426,7 @@ function ShopContent() {
             searchQuery: query,
             size,
             style: selectedStyle,
+            sale: saleOnly,
         });
     };
 
@@ -420,6 +436,17 @@ function ShopContent() {
             searchQuery: query,
             size: selectedSize,
             style,
+            sale: saleOnly,
+        });
+    };
+
+    const handleSaleClick = () => {
+        updateShopRoute({
+            categoryId: activeCategory,
+            searchQuery: query,
+            size: selectedSize,
+            style: selectedStyle,
+            sale: !saleOnly,
         });
     };
 
@@ -431,6 +458,7 @@ function ShopContent() {
             searchQuery: searchValue.trim(),
             size: selectedSize,
             style: selectedStyle,
+            sale: saleOnly,
         });
     };
 
@@ -487,7 +515,9 @@ function ShopContent() {
                 <div className="mb-[clamp(1rem,4vw,2.5rem)] flex flex-col gap-[clamp(1rem,3vw,1.25rem)] border-b border-zinc-100 pb-[clamp(1rem,4vw,2rem)] lg:flex-row lg:items-end lg:justify-between">
                     <div className="min-w-0">
                         <p className="text-[clamp(0.65rem,1.5vw,0.875rem)] font-black uppercase tracking-[0.2em] text-[#6FC276]">
-                            {selectedCategoryName}
+                            {saleOnly
+                                ? `Sale · ${selectedCategoryName}`
+                                : selectedCategoryName}
                         </p>
 
                         <h2 className="mt-[clamp(0.4rem,1vw,0.5rem)] text-[clamp(1.35rem,4.5vw,2.25rem)] font-black leading-tight tracking-tight text-zinc-950">
@@ -541,7 +571,8 @@ function ShopContent() {
                                 {(activeCategory ||
                                     query ||
                                     selectedSize ||
-                                    selectedStyle) && (
+                                    selectedStyle ||
+                                    saleOnly) && (
                                     <button
                                         type="button"
                                         onClick={handleClearFilters}
@@ -550,6 +581,26 @@ function ShopContent() {
                                         Clear
                                     </button>
                                 )}
+                            </div>
+
+                            <div className="mb-[clamp(1rem,3vw,1.5rem)]">
+                                <p className="mb-[clamp(0.45rem,1.5vw,0.75rem)] text-[clamp(0.6rem,1.3vw,0.75rem)] font-black uppercase tracking-[0.16em] text-zinc-400">
+                                    Offers
+                                </p>
+
+                                <button
+                                    type="button"
+                                    onClick={handleSaleClick}
+                                    aria-pressed={saleOnly}
+                                    className={`flex w-full items-center justify-between rounded-full px-[clamp(0.65rem,2vw,1.25rem)] py-[clamp(0.55rem,1.5vw,0.75rem)] text-left text-[clamp(0.65rem,1.5vw,0.875rem)] font-black leading-tight transition ${
+                                        saleOnly
+                                            ? "bg-red-600 text-white"
+                                            : "bg-white text-zinc-800 hover:bg-red-50 hover:text-red-700"
+                                    }`}
+                                >
+                                    <span>Sale only</span>
+                                    <span aria-hidden="true">%</span>
+                                </button>
                             </div>
 
                             <div>
@@ -728,9 +779,15 @@ function ShopContent() {
                     </div>
 
                     <div className="min-w-0">
-                        {(query || selectedSize || selectedStyle) && (
+                        {(query || selectedSize || selectedStyle || saleOnly) && (
                             <div className="mb-[clamp(0.75rem,2vw,1.5rem)] rounded-[clamp(1rem,2vw,1rem)] bg-zinc-50 px-[clamp(0.85rem,2vw,1.25rem)] py-[clamp(0.75rem,2vw,1rem)] text-[clamp(0.75rem,1.7vw,0.875rem)] text-zinc-600">
                                 Showing filtered results
+                                {saleOnly ? (
+                                    <>
+                                        {" "}
+                                        for products currently on sale
+                                    </>
+                                ) : null}
                                 {query ? (
                                     <>
                                         {" "}
