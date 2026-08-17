@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
 
 import AuthProvider from "@/components/AuthProvider";
@@ -110,6 +111,8 @@ export default function RootLayout({
             <body className="min-h-full overflow-x-hidden bg-white text-zinc-950">
                 <AuthProvider>{children}</AuthProvider>
             </body>
+
+            <GoogleAnalytics gaId="G-0FBQSWTVC8" />
         </html>
     );
 }
