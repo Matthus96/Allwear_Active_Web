@@ -10,6 +10,7 @@ type Product = {
     description?: string;
     backImage?: string;
     categories?: string | string[];
+    salePercentage?: number | string | null;
     isComingSoon?: boolean | string;
     comingSoon?: boolean | string;
     status?: string;
@@ -39,6 +40,10 @@ export default function ProductCard({ item }: { item: Product }) {
         0
     );
     const isLowStock = availableStock > 0 && availableStock < 10;
+    const rawSalePercentage = Number(item.salePercentage);
+    const salePercentage = Number.isFinite(rawSalePercentage)
+        ? Math.min(100, Math.max(0, Math.round(rawSalePercentage)))
+        : 0;
 
     return (
         <article className="group flex h-full min-w-0 flex-col overflow-hidden rounded-[1.5rem] border border-zinc-100 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl">
@@ -52,21 +57,29 @@ export default function ProductCard({ item }: { item: Product }) {
                         className="h-full w-full object-contain transition duration-500 group-hover:scale-105"
                     />
 
-                    {isComingSoon ? (
-                        <p className="absolute left-2.5 top-2.5 rounded-full bg-zinc-950 px-3 py-1.5 text-[9px] font-black uppercase tracking-wide text-white shadow-sm sm:text-[10px]">
-                            Coming Soon
-                        </p>
-                    ) : isLimitedEdition ? (
-                        <p className="absolute left-2.5 top-2.5 rounded-full bg-red-600 px-3 py-1.5 text-[9px] font-black uppercase tracking-wide text-white shadow-sm sm:text-[10px]">
-                            {Number.isFinite(limitedUnits) && limitedUnits > 0
-                                ? `Limited Edition · ${limitedUnits} made`
-                                : "Limited Edition"}
-                        </p>
-                    ) : isLowStock ? (
-                        <p className="absolute left-2.5 top-2.5 rounded-full bg-amber-500 px-3 py-1.5 text-[9px] font-black uppercase tracking-wide text-white shadow-sm sm:text-[10px]">
-                            Low stock
-                        </p>
-                    ) : null}
+                    <div className="absolute left-2.5 top-2.5 flex flex-col items-start gap-1.5">
+                        {salePercentage > 0 ? (
+                            <p className="rounded-full bg-red-600 px-3 py-1.5 text-[9px] font-black uppercase tracking-wide text-white shadow-sm sm:text-[10px]">
+                                Clearance · -{salePercentage}%
+                            </p>
+                        ) : null}
+
+                        {isComingSoon ? (
+                            <p className="rounded-full bg-zinc-950 px-3 py-1.5 text-[9px] font-black uppercase tracking-wide text-white shadow-sm sm:text-[10px]">
+                                Coming Soon
+                            </p>
+                        ) : isLimitedEdition ? (
+                            <p className="rounded-full bg-red-600 px-3 py-1.5 text-[9px] font-black uppercase tracking-wide text-white shadow-sm sm:text-[10px]">
+                                {Number.isFinite(limitedUnits) && limitedUnits > 0
+                                    ? `Limited Edition · ${limitedUnits} made`
+                                    : "Limited Edition"}
+                            </p>
+                        ) : isLowStock ? (
+                            <p className="rounded-full bg-amber-500 px-3 py-1.5 text-[9px] font-black uppercase tracking-wide text-white shadow-sm sm:text-[10px]">
+                                Low stock
+                            </p>
+                        ) : null}
+                    </div>
 
                     <div className="absolute bottom-2.5 right-2.5 rounded-full bg-[#6FC276] px-2.5 py-1.5 text-[9px] font-black uppercase tracking-wide text-white shadow-sm sm:text-[10px]">
                         View

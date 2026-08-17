@@ -32,6 +32,7 @@ export type Product = Models.Document & {
     description?: string;
     backImage?: string;
     categories?: string | string[];
+    salePercentage?: number | string | null;
 
     range?: string;
     stock?: number;
