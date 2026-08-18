@@ -57,6 +57,16 @@ export default function CartPage() {
             return;
         }
 
+        if (
+            appliedCoupon &&
+            appliedCoupon.code !== codeToApply
+        ) {
+            setCouponMessage(
+                "Remove the current coupon before applying another."
+            );
+            return;
+        }
+
         try {
             setCheckingCoupon(true);
             setCouponMessage("");
@@ -66,6 +76,13 @@ export default function CartPage() {
             const result = await verifyCoupon({
                 code: codeToApply,
                 subtotal,
+                items: items.map((item) => ({
+                    productId: item.productId,
+                    quantity: item.quantity,
+                })),
+                accountId: user?.accountId,
+                userId: user?.$id,
+                email: user?.email,
             });
 
             setCouponMessage(result.message);
@@ -73,6 +90,13 @@ export default function CartPage() {
             if (result.valid) {
                 setAppliedCoupon(result.coupon);
                 setCouponDiscount(result.discount);
+
+                if (typeof window !== "undefined") {
+                    localStorage.setItem(
+                        "allwear_coupon",
+                        codeToApply
+                    );
+                }
             } else {
                 setAppliedCoupon(null);
                 setCouponDiscount(0);
@@ -101,6 +125,8 @@ export default function CartPage() {
         autoCouponAttemptedRef.current = false;
 
         if (typeof window !== "undefined") {
+            localStorage.removeItem("allwear_coupon");
+
             const params = new URLSearchParams(
                 window.location.search
             );
@@ -124,9 +150,28 @@ export default function CartPage() {
 
         const couponFromUrl = params.get("coupon");
 
-        if (!couponFromUrl) return;
+        if (couponFromUrl) {
+            const normalizedUrlCoupon = couponFromUrl
+                .trim()
+                .toUpperCase();
 
-        const normalizedCoupon = couponFromUrl
+            if (normalizedUrlCoupon) {
+                localStorage.setItem(
+                    "allwear_coupon",
+                    normalizedUrlCoupon
+                );
+            }
+        }
+
+        const storedCoupon =
+            localStorage.getItem("allwear_coupon");
+
+        const couponToApply =
+            couponFromUrl || storedCoupon;
+
+        if (!couponToApply) return;
+
+        const normalizedCoupon = couponToApply
             .trim()
             .toUpperCase();
 
@@ -172,6 +217,16 @@ export default function CartPage() {
                 return;
             }
 
+            const referralCode =
+                typeof window !== "undefined"
+                    ? localStorage.getItem("allwear_ref")
+                    : null;
+
+            const campaignCode =
+                typeof window !== "undefined"
+                    ? localStorage.getItem("allwear_campaign")
+                    : null;
+
             const initRes = await fetch("/api/paystack/init", {
                 method: "POST",
                 headers: {
@@ -180,6 +235,7 @@ export default function CartPage() {
                 body: JSON.stringify({
                     email: user.email,
                     userId: user.$id,
+                    accountId: user?.accountId ?? "",
                     amount: finalTotal,
                     items,
                     subtotal,
@@ -187,6 +243,8 @@ export default function CartPage() {
                     couponCode:
                         appliedCoupon?.code ?? null,
                     couponDiscount,
+                    referralCode,
+                    campaignCode,
                 }),
             });
 
@@ -308,13 +366,7 @@ export default function CartPage() {
                         ) : null}
 
                         <Link
-                            href={
-                                couponCode
-                                    ? `/shop?coupon=${encodeURIComponent(
-                                          couponCode
-                                      )}`
-                                    : "/shop"
-                            }
+                            href="/shop"
                             className="mt-8 inline-flex rounded-full bg-[#6FC276] px-8 py-4 font-black text-white transition hover:bg-zinc-950"
                         >
                             Shop Now

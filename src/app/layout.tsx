@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
+import QrCampaignCapture from "@/components/QrCampaignCapture";
 
 import AuthProvider from "@/components/AuthProvider";
 
@@ -19,6 +20,7 @@ const geistMono = Geist_Mono({
 const siteUrl = "https://allwearactive.co.za";
 
 export const metadata: Metadata = {
+    
     metadataBase: new URL(siteUrl),
 
     applicationName: "Allwear Active",
@@ -109,6 +111,7 @@ export default function RootLayout({
             className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
         >
             <body className="min-h-full overflow-x-hidden bg-white text-zinc-950">
+                <QrCampaignCapture />
                 <AuthProvider>{children}</AuthProvider>
             </body>
 
