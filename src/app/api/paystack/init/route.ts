@@ -89,20 +89,25 @@ export async function POST(
         const requestedMethod =
             String(
                 body.fulfilmentMethod ||
-                    "delivery"
+                    ""
             ).trim();
 
-        const fulfilmentMethod: FulfilmentMethod =
-            requestedMethod ===
-            "collection"
-                ? "collection"
-                : "delivery";
+        if (
+            requestedMethod !== "delivery" &&
+            requestedMethod !== "collection"
+        ) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    message:
+                        "Choose delivery or collection before payment.",
+                },
+                { status: 400 }
+            );
+        }
 
-        const explicitFulfilmentMethod =
-            body.fulfilmentMethod ===
-                "delivery" ||
-            body.fulfilmentMethod ===
-                "collection";
+        const fulfilmentMethod: FulfilmentMethod =
+            requestedMethod;
 
         const customerDetails =
             body.customerDetails ??
@@ -147,10 +152,7 @@ export async function POST(
         }
 
         if (
-            explicitFulfilmentMethod
-        ) {
-            if (
-                !String(
+            !String(
                     customerDetails?.fullName ||
                         ""
                 ).trim()
@@ -214,7 +216,6 @@ export async function POST(
                     );
                 }
             }
-        }
 
         const calculatedSubtotal =
             items.reduce(

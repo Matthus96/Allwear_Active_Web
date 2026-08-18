@@ -1,26 +1,29 @@
-# Allwear collection checkout update
+# Allwear checkout modal update
 
-This update adds:
+New flow:
 
-- Delivery or Collection selection at checkout.
-- Collection is free.
-- All collections use:
-  Allwear Factory Shop
-  55 Albert Wessels Drive
-  Riverside Industrial
-  Newcastle
-- Delivery remains R100.
-- Delivery address fields are hidden for collection.
-- Collection/delivery method is saved into Paystack metadata and the order gateway response.
-- Existing coupon/QR coupon codes stored in `allwear_coupon` are revalidated at checkout.
-- The success page confirms collection and shows the factory shop address.
+1. Customer reviews cart.
+2. Customer clicks **Continue to Checkout**.
+3. A modal asks:
+   - **Collect — FREE**
+   - **Deliver — R100**
+4. The selected method is passed to `/checkout?fulfilment=...`.
+5. Checkout no longer asks the customer to choose again.
+6. Checkout cannot proceed without a selected method.
+7. Paystack rejects any initialization request that has no valid fulfilment method.
 
-Replace these files:
+Collection point:
+**Allwear Factory Shop**
+55 Albert Wessels Drive
+Riverside Industrial
+Newcastle
 
-1. `src/app/checkout/page.tsx`
-2. `src/app/api/paystack/init/route.ts`
-3. `src/app/success/page.tsx`
+Files in this update:
 
-Then apply `CART_PATCH.md` to `src/app/cart/page.tsx` so customers cannot bypass the fulfilment choice with the old direct Pay Now button.
+- `src/components/FulfilmentModal.tsx` — new modal
+- `src/app/checkout/page.tsx` — revised guarded checkout
+- `src/app/api/paystack/init/route.ts` — server-side fulfilment guard
+- `src/app/success/page.tsx` — same collection-aware success page from the previous update
+- `CART_MODAL_PATCH.md` — small cart-page changes
 
-No Appwrite schema change is required for this version because the fulfilment data is stored inside the existing `gateway_response` JSON string.
+No Appwrite schema change is required.

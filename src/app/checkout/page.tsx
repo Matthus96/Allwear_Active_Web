@@ -45,7 +45,7 @@ export default function CheckoutPage() {
     const lockRef = useRef(false);
 
     const [fulfilmentMethod, setFulfilmentMethod] =
-        useState<FulfilmentMethod>("delivery");
+        useState<FulfilmentMethod | null>(null);
 
     const [couponCode, setCouponCode] = useState("");
     const [couponDiscount, setCouponDiscount] = useState(0);
@@ -133,6 +133,20 @@ export default function CheckoutPage() {
     }, [user]);
 
     useEffect(() => {
+        if (typeof window === "undefined") return;
+
+        const params = new URLSearchParams(window.location.search);
+        const method = params.get("fulfilment");
+
+        if (method === "delivery" || method === "collection") {
+            setFulfilmentMethod(method);
+            return;
+        }
+
+        router.replace("/cart");
+    }, [router]);
+
+    useEffect(() => {
         let cancelled = false;
 
         const refreshCoupon = async () => {
@@ -192,6 +206,10 @@ export default function CheckoutPage() {
     ]);
 
     const validateForm = () => {
+        if (!fulfilmentMethod) {
+            return "Please choose delivery or collection from your cart.";
+        }
+
         if (!form.fullName.trim()) {
             return "Please enter your full name.";
         }
@@ -243,6 +261,11 @@ export default function CheckoutPage() {
             if (!items.length) {
                 alert("Your cart is empty.");
                 router.push("/shop");
+                return;
+            }
+
+            if (!fulfilmentMethod) {
+                router.push("/cart");
                 return;
             }
 
@@ -369,6 +392,21 @@ export default function CheckoutPage() {
         }
     };
 
+    if (!fulfilmentMethod) {
+        return (
+            <main className="flex min-h-screen items-center justify-center bg-white px-5">
+                <div className="rounded-3xl bg-zinc-50 px-8 py-10 text-center ring-1 ring-zinc-100">
+                    <p className="text-sm font-black uppercase tracking-[0.2em] text-[#6FC276]">
+                        Checkout
+                    </p>
+                    <p className="mt-3 font-black text-zinc-950">
+                        Confirming fulfilment method...
+                    </p>
+                </div>
+            </main>
+        );
+    }
+
     return (
         <main className="min-h-screen overflow-x-hidden bg-white">
             <Navbar />
@@ -382,13 +420,15 @@ export default function CheckoutPage() {
                     </p>
 
                     <h1 className="mt-4 max-w-3xl text-4xl font-black tracking-tight md:text-6xl">
-                        Delivery or collection?
+                        Complete your order.
                     </h1>
 
                     <p className="mt-5 max-w-2xl text-sm leading-7 text-zinc-300 md:text-base">
-                        Choose how you want to receive your
-                        order before continuing to secure
-                        payment.
+                        Confirm your contact details
+                        {fulfilmentMethod === "delivery"
+                            ? " and delivery address"
+                            : ""}
+                        {" "}before continuing to secure payment.
                     </p>
                 </div>
             </section>
@@ -400,80 +440,32 @@ export default function CheckoutPage() {
                 >
                     <div className="mb-8">
                         <p className="text-sm font-black uppercase tracking-[0.2em] text-[#6FC276]">
-                            Receive Your Order
+                            Fulfilment Method
                         </p>
 
-                        <h2 className="mt-2 text-3xl font-black text-zinc-950">
-                            Choose an option
-                        </h2>
-                    </div>
+                        <div className="mt-3 flex flex-col gap-4 rounded-[1.5rem] bg-white p-5 ring-1 ring-zinc-100 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h2 className="text-2xl font-black text-zinc-950">
+                                    {fulfilmentMethod === "collection"
+                                        ? "Factory shop collection"
+                                        : "Courier delivery"}
+                                </h2>
 
-                    <div className="grid gap-4 sm:grid-cols-2">
-                        <button
-                            type="button"
-                            onClick={() =>
-                                setFulfilmentMethod(
-                                    "delivery"
-                                )
-                            }
-                            className={`rounded-[1.5rem] p-5 text-left ring-1 transition ${
-                                fulfilmentMethod ===
-                                "delivery"
-                                    ? "bg-zinc-950 text-white ring-zinc-950"
-                                    : "bg-white text-zinc-950 ring-zinc-200 hover:ring-[#6FC276]"
-                            }`}
-                        >
-                            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#6FC276]">
-                                Delivery
-                            </p>
-                            <p className="mt-2 text-xl font-black">
-                                Courier delivery
-                            </p>
-                            <p
-                                className={`mt-2 text-sm ${
-                                    fulfilmentMethod ===
-                                    "delivery"
-                                        ? "text-zinc-300"
-                                        : "text-zinc-500"
-                                }`}
-                            >
-                                Flat delivery fee of
-                                R100.00.
-                            </p>
-                        </button>
+                                <p className="mt-2 text-sm font-bold leading-6 text-zinc-500">
+                                    {fulfilmentMethod === "collection"
+                                        ? "FREE · Allwear Factory Shop, 55 Albert Wessels Drive, Riverside Industrial, Newcastle"
+                                        : "R100.00 flat delivery fee"}
+                                </p>
+                            </div>
 
-                        <button
-                            type="button"
-                            onClick={() =>
-                                setFulfilmentMethod(
-                                    "collection"
-                                )
-                            }
-                            className={`rounded-[1.5rem] p-5 text-left ring-1 transition ${
-                                fulfilmentMethod ===
-                                "collection"
-                                    ? "bg-zinc-950 text-white ring-zinc-950"
-                                    : "bg-white text-zinc-950 ring-zinc-200 hover:ring-[#6FC276]"
-                            }`}
-                        >
-                            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#6FC276]">
-                                Collection
-                            </p>
-                            <p className="mt-2 text-xl font-black">
-                                Factory shop pickup
-                            </p>
-                            <p
-                                className={`mt-2 text-sm ${
-                                    fulfilmentMethod ===
-                                    "collection"
-                                        ? "text-zinc-300"
-                                        : "text-zinc-500"
-                                }`}
+                            <button
+                                type="button"
+                                onClick={() => router.push("/cart")}
+                                className="w-fit rounded-full bg-zinc-100 px-5 py-3 text-sm font-black text-zinc-700 transition hover:bg-zinc-950 hover:text-white"
                             >
-                                Free collection from
-                                Allwear in Newcastle.
-                            </p>
-                        </button>
+                                Change
+                            </button>
+                        </div>
                     </div>
 
                     <div className="mb-8 mt-10">
