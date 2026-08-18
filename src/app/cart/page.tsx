@@ -6,12 +6,11 @@ import Link from "next/link";
 
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import FulfilmentModal from "@/components/FulfilmentModal";
 
 import { useCartStore } from "@/store/cart.store";
 import { useAuthStore } from "@/store/auth.store";
 import { verifyCoupon } from "@/lib/appwrite";
-
-const DELIVERY_FEE = 100.0;
 
 export default function CartPage() {
     const items = useCartStore((s) => s.items ?? []);
@@ -33,19 +32,12 @@ export default function CartPage() {
     const [couponDiscount, setCouponDiscount] = useState(0);
     const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
     const [checkingCoupon, setCheckingCoupon] = useState(false);
+    const [showFulfilmentModal, setShowFulfilmentModal] = useState(false);
 
-    const [loading, setLoading] = useState(false);
-
-    const lockRef = useRef(false);
     const autoCouponAttemptedRef = useRef(false);
 
     const subtotal = totalPrice;
-    const deliveryFee = DELIVERY_FEE;
-
-    const finalTotal = Math.max(
-        0,
-        subtotal + deliveryFee - couponDiscount
-    );
+    const cartTotal = Math.max(0, subtotal - couponDiscount);
 
     const applyCoupon = async (codeOverride?: string) => {
         const codeToApply = (codeOverride ?? couponCode)
@@ -57,10 +49,7 @@ export default function CartPage() {
             return;
         }
 
-        if (
-            appliedCoupon &&
-            appliedCoupon.code !== codeToApply
-        ) {
+        if (appliedCoupon && appliedCoupon.code !== codeToApply) {
             setCouponMessage(
                 "Remove the current coupon before applying another."
             );
@@ -70,7 +59,6 @@ export default function CartPage() {
         try {
             setCheckingCoupon(true);
             setCouponMessage("");
-
             setCouponCode(codeToApply);
 
             const result = await verifyCoupon({
@@ -92,10 +80,7 @@ export default function CartPage() {
                 setCouponDiscount(result.discount);
 
                 if (typeof window !== "undefined") {
-                    localStorage.setItem(
-                        "allwear_coupon",
-                        codeToApply
-                    );
+                    localStorage.setItem("allwear_coupon", codeToApply);
                 }
             } else {
                 setAppliedCoupon(null);
@@ -104,9 +89,7 @@ export default function CartPage() {
         } catch (error: any) {
             setAppliedCoupon(null);
             setCouponDiscount(0);
-            setCouponMessage(
-                error?.message || "Could not verify coupon."
-            );
+            setCouponMessage(error?.message || "Could not verify coupon.");
         } finally {
             setCheckingCoupon(false);
         }
@@ -121,60 +104,39 @@ export default function CartPage() {
         setCouponMessage("");
         setCouponDiscount(0);
         setAppliedCoupon(null);
-
         autoCouponAttemptedRef.current = false;
 
         if (typeof window !== "undefined") {
             localStorage.removeItem("allwear_coupon");
 
-            const params = new URLSearchParams(
-                window.location.search
-            );
-
+            const params = new URLSearchParams(window.location.search);
             params.delete("coupon");
 
             const query = params.toString();
-
-            router.replace(
-                query ? `/cart?${query}` : "/cart"
-            );
+            router.replace(query ? `/cart?${query}` : "/cart");
         }
     };
 
     useEffect(() => {
         if (typeof window === "undefined") return;
 
-        const params = new URLSearchParams(
-            window.location.search
-        );
-
+        const params = new URLSearchParams(window.location.search);
         const couponFromUrl = params.get("coupon");
 
         if (couponFromUrl) {
-            const normalizedUrlCoupon = couponFromUrl
-                .trim()
-                .toUpperCase();
+            const normalizedUrlCoupon = couponFromUrl.trim().toUpperCase();
 
             if (normalizedUrlCoupon) {
-                localStorage.setItem(
-                    "allwear_coupon",
-                    normalizedUrlCoupon
-                );
+                localStorage.setItem("allwear_coupon", normalizedUrlCoupon);
             }
         }
 
-        const storedCoupon =
-            localStorage.getItem("allwear_coupon");
-
-        const couponToApply =
-            couponFromUrl || storedCoupon;
+        const storedCoupon = localStorage.getItem("allwear_coupon");
+        const couponToApply = couponFromUrl || storedCoupon;
 
         if (!couponToApply) return;
 
-        const normalizedCoupon = couponToApply
-            .trim()
-            .toUpperCase();
-
+        const normalizedCoupon = couponToApply.trim().toUpperCase();
         if (!normalizedCoupon) return;
 
         setCouponCode(normalizedCoupon);
@@ -187,98 +149,35 @@ export default function CartPage() {
         }
 
         if (autoCouponAttemptedRef.current) return;
-
         autoCouponAttemptedRef.current = true;
 
         applyCoupon(normalizedCoupon);
     }, [items.length]);
 
-    const handlePayNow = async () => {
-        if (loading || lockRef.current) return;
-
-        lockRef.current = true;
-        setLoading(true);
-
-        try {
-            if (!items.length) {
-                alert("Cart is empty");
-                return;
-            }
-
-            if (!hydrated || authLoading) {
-                alert(
-                    "Checking your account. Please try again in a moment."
-                );
-                return;
-            }
-
-            if (!user?.email || !user?.$id) {
-                router.push("/login?redirect=/cart");
-                return;
-            }
-
-            const referralCode =
-                typeof window !== "undefined"
-                    ? localStorage.getItem("allwear_ref")
-                    : null;
-
-            const campaignCode =
-                typeof window !== "undefined"
-                    ? localStorage.getItem("allwear_campaign")
-                    : null;
-
-            const initRes = await fetch("/api/paystack/init", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    email: user.email,
-                    userId: user.$id,
-                    accountId: user?.accountId ?? "",
-                    amount: finalTotal,
-                    items,
-                    subtotal,
-                    deliveryFee,
-                    couponCode:
-                        appliedCoupon?.code ?? null,
-                    couponDiscount,
-                    referralCode,
-                    campaignCode,
-                }),
-            });
-
-            const initData = await initRes.json();
-
-            if (
-                !initRes.ok ||
-                !initData?.authorization_url
-            ) {
-                throw new Error(
-                    initData?.message ||
-                        "Payment init failed"
-                );
-            }
-
-            useCartStore
-                .getState()
-                .setPendingPayment({
-                    reference: initData.reference,
-                    items,
-                    totalPrice: finalTotal,
-                });
-
-            window.location.href =
-                initData.authorization_url;
-        } catch (error: any) {
-            alert(
-                error?.message ||
-                    "Something went wrong."
-            );
-        } finally {
-            setLoading(false);
-            lockRef.current = false;
+    const handleContinueToCheckout = () => {
+        if (!items.length) {
+            alert("Cart is empty");
+            return;
         }
+
+        if (!hydrated || authLoading) {
+            alert("Checking your account. Please try again in a moment.");
+            return;
+        }
+
+        if (!user?.email || !user?.$id) {
+            router.push("/login?redirect=/cart");
+            return;
+        }
+
+        setShowFulfilmentModal(true);
+    };
+
+    const handleChooseFulfilment = (
+        method: "collection" | "delivery"
+    ) => {
+        setShowFulfilmentModal(false);
+        router.push(`/checkout?fulfilment=${method}`);
     };
 
     return (
@@ -298,9 +197,8 @@ export default function CartPage() {
                     </h1>
 
                     <p className="mt-5 max-w-2xl text-sm leading-7 text-zinc-300 md:text-base">
-                        Check your selected products, sizes
-                        and quantities before continuing to
-                        secure payment.
+                        Check your selected products, sizes and quantities before
+                        choosing collection or delivery.
                     </p>
                 </div>
             </section>
@@ -314,11 +212,7 @@ export default function CartPage() {
 
                         <h2 className="mt-2 text-3xl font-black text-zinc-950">
                             {items.length > 0
-                                ? `${totalItems} item${
-                                      totalItems === 1
-                                          ? ""
-                                          : "s"
-                                  } in your cart`
+                                ? `${totalItems} item${totalItems === 1 ? "" : "s"} in your cart`
                                 : "Your cart is empty"}
                         </h2>
                     </div>
@@ -342,8 +236,7 @@ export default function CartPage() {
                         </h2>
 
                         <p className="mx-auto mt-4 max-w-md text-sm leading-7 text-zinc-500">
-                            Browse the Allwear Hub
-                            storefront and add products to
+                            Browse the Allwear Hub storefront and add products to
                             your cart before checking out.
                         </p>
 
@@ -352,11 +245,9 @@ export default function CartPage() {
                                 <p className="text-xs font-black uppercase tracking-[0.15em] text-[#6FC276]">
                                     Coupon detected
                                 </p>
-
                                 <p className="mt-2 font-black text-zinc-950">
                                     {couponCode}
                                 </p>
-
                                 {couponMessage ? (
                                     <p className="mt-2 text-sm font-bold text-zinc-500">
                                         {couponMessage}
@@ -377,24 +268,13 @@ export default function CartPage() {
                         <div className="space-y-4">
                             {items.map((item) => (
                                 <div
-                                    key={`${item.productId}-${
-                                        item.size ??
-                                        "default"
-                                    }`}
+                                    key={`${item.productId}-${item.size ?? "default"}`}
                                     className="grid gap-4 rounded-[2rem] border border-zinc-100 bg-white p-4 shadow-sm transition hover:shadow-md sm:grid-cols-[140px_1fr]"
                                 >
                                     <div className="flex aspect-square w-full items-center justify-center rounded-[1.5rem] bg-zinc-50 p-4 sm:h-36 sm:w-36">
                                         <img
-                                            src={
-                                                item
-                                                    .stockSnapshot
-                                                    .image_url
-                                            }
-                                            alt={
-                                                item
-                                                    .stockSnapshot
-                                                    .name
-                                            }
+                                            src={item.stockSnapshot.image_url}
+                                            alt={item.stockSnapshot.name}
                                             className="h-full w-full object-contain"
                                         />
                                     </div>
@@ -404,44 +284,25 @@ export default function CartPage() {
                                             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                                 <div>
                                                     <p className="text-xs font-black uppercase tracking-[0.2em] text-[#6FC276]">
-                                                        Allwear
-                                                        Product
+                                                        Allwear Product
                                                     </p>
 
                                                     <h3 className="mt-1 line-clamp-2 text-lg font-black text-zinc-950">
-                                                        {
-                                                            item
-                                                                .stockSnapshot
-                                                                .name
-                                                        }
+                                                        {item.stockSnapshot.name}
                                                     </h3>
                                                 </div>
 
                                                 <p className="shrink-0 text-lg font-black text-zinc-950">
-                                                    R
-                                                    {Number(
-                                                        item
-                                                            .stockSnapshot
-                                                            .price ||
-                                                            0
-                                                    ).toFixed(
-                                                        2
-                                                    )}
+                                                    R{Number(item.stockSnapshot.price || 0).toFixed(2)}
                                                 </p>
                                             </div>
 
                                             <div className="mt-4 flex flex-wrap gap-2">
                                                 <span className="rounded-full bg-zinc-100 px-4 py-2 text-xs font-black text-zinc-600">
-                                                    Size:{" "}
-                                                    {item.size ??
-                                                        "default"}
+                                                    Size: {item.size ?? "default"}
                                                 </span>
-
                                                 <span className="rounded-full bg-zinc-100 px-4 py-2 text-xs font-black text-zinc-600">
-                                                    Qty:{" "}
-                                                    {
-                                                        item.quantity
-                                                    }
+                                                    Qty: {item.quantity}
                                                 </span>
                                             </div>
                                         </div>
@@ -463,9 +324,7 @@ export default function CartPage() {
                                                 </button>
 
                                                 <span className="min-w-8 text-center font-black text-zinc-950">
-                                                    {
-                                                        item.quantity
-                                                    }
+                                                    {item.quantity}
                                                 </span>
 
                                                 <button
@@ -520,12 +379,8 @@ export default function CartPage() {
                                     <input
                                         value={couponCode}
                                         onChange={(e) => {
-                                            setCouponCode(
-                                                e.target.value.toUpperCase()
-                                            );
-                                            setCouponMessage(
-                                                ""
-                                            );
+                                            setCouponCode(e.target.value.toUpperCase());
+                                            setCouponMessage("");
                                         }}
                                         placeholder="Enter coupon code"
                                         className="min-h-12 rounded-2xl border border-zinc-200 px-4 text-sm font-bold uppercase text-zinc-950 outline-none placeholder:text-zinc-400"
@@ -534,29 +389,17 @@ export default function CartPage() {
                                     <div className="grid grid-cols-2 gap-3">
                                         <button
                                             type="button"
-                                            onClick={
-                                                handleApplyCoupon
-                                            }
-                                            disabled={
-                                                checkingCoupon ||
-                                                !couponCode
-                                            }
+                                            onClick={handleApplyCoupon}
+                                            disabled={checkingCoupon || !couponCode}
                                             className="rounded-2xl bg-zinc-950 px-5 py-3 text-sm font-black uppercase tracking-wide text-white transition hover:bg-[#6FC276] disabled:cursor-not-allowed disabled:opacity-50"
                                         >
-                                            {checkingCoupon
-                                                ? "Checking..."
-                                                : "Apply"}
+                                            {checkingCoupon ? "Checking..." : "Apply"}
                                         </button>
 
                                         <button
                                             type="button"
-                                            onClick={
-                                                handleRemoveCoupon
-                                            }
-                                            disabled={
-                                                !appliedCoupon &&
-                                                !couponCode
-                                            }
+                                            onClick={handleRemoveCoupon}
+                                            disabled={!appliedCoupon && !couponCode}
                                             className="rounded-2xl bg-zinc-100 px-5 py-3 text-sm font-black uppercase tracking-wide text-zinc-700 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-50"
                                         >
                                             Remove
@@ -580,60 +423,40 @@ export default function CartPage() {
                             <div className="mt-5 space-y-4 rounded-[1.5rem] bg-white p-5 ring-1 ring-zinc-100">
                                 <div className="flex justify-between text-sm">
                                     <span className="text-zinc-500">
-                                        Items (
-                                        {totalItems})
+                                        Items ({totalItems})
                                     </span>
-
                                     <span className="font-black text-zinc-950">
-                                        R
-                                        {subtotal.toFixed(
-                                            2
-                                        )}
-                                    </span>
-                                </div>
-
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-zinc-500">
-                                        Delivery
-                                    </span>
-
-                                    <span className="font-black text-zinc-950">
-                                        R
-                                        {deliveryFee.toFixed(
-                                            2
-                                        )}
+                                        R{subtotal.toFixed(2)}
                                     </span>
                                 </div>
 
                                 {couponDiscount > 0 ? (
                                     <div className="flex justify-between text-sm">
                                         <span className="text-zinc-500">
-                                            Coupon{" "}
-                                            {appliedCoupon?.code
-                                                ? `(${appliedCoupon.code})`
-                                                : ""}
+                                            Coupon {appliedCoupon?.code ? `(${appliedCoupon.code})` : ""}
                                         </span>
-
                                         <span className="font-black text-[#6FC276]">
-                                            -R
-                                            {couponDiscount.toFixed(
-                                                2
-                                            )}
+                                            -R{couponDiscount.toFixed(2)}
                                         </span>
                                     </div>
                                 ) : null}
 
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-zinc-500">
+                                        Fulfilment
+                                    </span>
+                                    <span className="font-black text-zinc-500">
+                                        Choose at checkout
+                                    </span>
+                                </div>
+
                                 <div className="border-t border-zinc-200 pt-4">
                                     <div className="flex justify-between text-lg">
                                         <span className="font-black text-zinc-950">
-                                            Total
+                                            Cart total
                                         </span>
-
                                         <span className="font-black text-zinc-950">
-                                            R
-                                            {finalTotal.toFixed(
-                                                2
-                                            )}
+                                            R{cartTotal.toFixed(2)}
                                         </span>
                                     </div>
                                 </div>
@@ -641,21 +464,11 @@ export default function CartPage() {
 
                             <button
                                 type="button"
-                                onClick={handlePayNow}
-                                disabled={loading}
-                                className="mt-6 flex w-full items-center justify-center rounded-full bg-[#6FC276] px-6 py-4 font-black text-white transition hover:bg-zinc-950 disabled:cursor-not-allowed disabled:opacity-50"
+                                onClick={handleContinueToCheckout}
+                                className="mt-6 flex w-full items-center justify-center rounded-full bg-[#6FC276] px-6 py-4 font-black text-white transition hover:bg-zinc-950"
                             >
-                                {loading
-                                    ? "Processing..."
-                                    : "Pay Now"}
+                                Continue to Checkout
                             </button>
-
-                            <Link
-                                href="/checkout"
-                                className="mt-3 flex w-full items-center justify-center rounded-full bg-zinc-950 px-6 py-4 font-black text-white transition hover:bg-[#6FC276]"
-                            >
-                                Continue to Delivery
-                            </Link>
 
                             <button
                                 type="button"
@@ -666,19 +479,18 @@ export default function CartPage() {
                             </button>
 
                             <div className="mt-5 rounded-[1.5rem] bg-white p-5 text-sm leading-6 text-zinc-500 ring-1 ring-zinc-100">
-                                Secure payment will open
-                                after you confirm your cart.
-                                Delivery is charged at a flat
-                                rate of{" "}
-                                <span className="font-black text-zinc-950">
-                                    R100.00
-                                </span>
-                                .
+                                Choose <span className="font-black text-zinc-950">Collection</span> or <span className="font-black text-zinc-950">Delivery</span> before payment. Collection is free; delivery is R100.00.
                             </div>
                         </aside>
                     </div>
                 )}
             </section>
+
+            <FulfilmentModal
+                open={showFulfilmentModal}
+                onClose={() => setShowFulfilmentModal(false)}
+                onSelect={handleChooseFulfilment}
+            />
 
             <Footer />
         </main>
