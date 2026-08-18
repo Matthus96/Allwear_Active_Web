@@ -4,6 +4,17 @@ import { verifyCoupon } from "@/lib/appwrite";
 
 const DELIVERY_FEE = 100;
 
+const COLLECTION_LOCATION = {
+    name: "Allwear Factory Shop",
+    addressLine1: "55 Albert Wessels Drive",
+    suburb: "Riverside Industrial",
+    city: "Newcastle",
+};
+
+type FulfilmentMethod =
+    | "delivery"
+    | "collection";
+
 type CheckoutItem = {
     id?: string;
     productId?: string;
@@ -65,8 +76,7 @@ export async function POST(
 
         const accountId =
             String(
-                body.accountId ||
-                    ""
+                body.accountId || ""
             ).trim();
 
         const items: CheckoutItem[] =
@@ -76,9 +86,40 @@ export async function POST(
                 ? body.items
                 : [];
 
-        const deliveryDetails =
-            body.deliveryDetails ??
+        const requestedMethod =
+            String(
+                body.fulfilmentMethod ||
+                    "delivery"
+            ).trim();
+
+        const fulfilmentMethod: FulfilmentMethod =
+            requestedMethod ===
+            "collection"
+                ? "collection"
+                : "delivery";
+
+        const explicitFulfilmentMethod =
+            body.fulfilmentMethod ===
+                "delivery" ||
+            body.fulfilmentMethod ===
+                "collection";
+
+        const customerDetails =
+            body.customerDetails ??
             null;
+
+        const deliveryDetails =
+            fulfilmentMethod ===
+            "delivery"
+                ? body.deliveryDetails ??
+                  null
+                : null;
+
+        const collectionDetails =
+            fulfilmentMethod ===
+            "collection"
+                ? COLLECTION_LOCATION
+                : null;
 
         const couponCode =
             body.couponCode
@@ -105,15 +146,76 @@ export async function POST(
             );
         }
 
-        /*
-         * ---------------------------------------------------------
-         * CALCULATE SUBTOTAL
-         * ---------------------------------------------------------
-         *
-         * We do NOT trust body.amount or body.couponDiscount.
-         *
-         * Coupon discount will be recalculated below.
-         */
+        if (
+            explicitFulfilmentMethod
+        ) {
+            if (
+                !String(
+                    customerDetails?.fullName ||
+                        ""
+                ).trim()
+            ) {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        message:
+                            "Missing customer name.",
+                    },
+                    { status: 400 }
+                );
+            }
+
+            if (
+                !String(
+                    customerDetails?.phone ||
+                        ""
+                ).trim()
+            ) {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        message:
+                            "Missing customer phone number.",
+                    },
+                    { status: 400 }
+                );
+            }
+
+            if (
+                fulfilmentMethod ===
+                "delivery"
+            ) {
+                const requiredFields = [
+                    "addressLine1",
+                    "suburb",
+                    "city",
+                    "province",
+                    "postalCode",
+                ];
+
+                const missingField =
+                    requiredFields.find(
+                        (field) =>
+                            !String(
+                                deliveryDetails?.[
+                                    field
+                                ] || ""
+                            ).trim()
+                    );
+
+                if (missingField) {
+                    return NextResponse.json(
+                        {
+                            success: false,
+                            message:
+                                "Delivery address is incomplete.",
+                        },
+                        { status: 400 }
+                    );
+                }
+            }
+        }
+
         const calculatedSubtotal =
             items.reduce(
                 (
@@ -195,16 +297,6 @@ export async function POST(
             );
         }
 
-        /*
-         * ---------------------------------------------------------
-         * COUPON
-         * ---------------------------------------------------------
-         *
-         * Only ONE coupon code can enter this checkout.
-         *
-         * verifyCoupon also checks all cart products against
-         * Appwrite and rejects the coupon if ANY item is on sale.
-         */
         let couponDiscount = 0;
 
         let verifiedCouponCode:
@@ -289,17 +381,18 @@ export async function POST(
                     .toUpperCase();
         }
 
-        /*
-         * ---------------------------------------------------------
-         * FINAL TOTAL
-         * ---------------------------------------------------------
-         */
+        const deliveryFee =
+            fulfilmentMethod ===
+            "delivery"
+                ? DELIVERY_FEE
+                : 0;
+
         const finalAmount =
             Math.round(
                 Math.max(
                     0,
                     subtotal +
-                        DELIVERY_FEE -
+                        deliveryFee -
                         couponDiscount
                 ) * 100
             ) / 100;
@@ -322,11 +415,6 @@ export async function POST(
             );
         }
 
-        /*
-         * ---------------------------------------------------------
-         * PAYSTACK
-         * ---------------------------------------------------------
-         */
         const paystackRes =
             await fetch(
                 "https://api.paystack.co/transaction/initialize",
@@ -369,15 +457,20 @@ export async function POST(
 
                                         subtotal,
 
-                                        deliveryFee:
-                                            DELIVERY_FEE,
+                                        fulfilmentMethod,
+
+                                        deliveryFee,
 
                                         couponCode:
                                             verifiedCouponCode,
 
                                         couponDiscount,
 
+                                        customerDetails,
+
                                         deliveryDetails,
+
+                                        collectionDetails,
 
                                         items,
                                     },
@@ -430,8 +523,11 @@ export async function POST(
 
                 subtotal,
 
-                deliveryFee:
-                    DELIVERY_FEE,
+                fulfilmentMethod,
+
+                deliveryFee,
+
+                collectionDetails,
 
                 couponCode:
                     verifiedCouponCode,

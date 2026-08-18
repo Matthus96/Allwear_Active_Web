@@ -1,6 +1,11 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import {
+    Suspense,
+    useEffect,
+    useRef,
+    useState,
+} from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 
@@ -11,183 +16,424 @@ import { useAuthStore } from "@/store/auth.store";
 const VERIFY_URL = "/api/paystack/verify";
 const DELIVERY_FEE = 100;
 
+type FulfilmentMethod =
+    | "delivery"
+    | "collection";
+
 function SuccessContent() {
     const searchParams = useSearchParams();
     const hasVerifiedRef = useRef(false);
 
-    const clearCart = useCartStore((s) => s.clearCart);
-    const addOrder = useCartStore((s) => s.addOrder);
-    const pendingPayment = useCartStore((s) => s.pendingPayment);
-    const clearPendingPayment = useCartStore((s) => s.clearPendingPayment);
+    const clearCart = useCartStore(
+        (s) => s.clearCart
+    );
+    const addOrder = useCartStore(
+        (s) => s.addOrder
+    );
+    const pendingPayment =
+        useCartStore(
+            (s) => s.pendingPayment
+        );
+    const clearPendingPayment =
+        useCartStore(
+            (s) =>
+                s.clearPendingPayment
+        );
 
-    const user = useAuthStore((state) => state.user);
-    const authHydrated = useAuthStore((state) => state.hydrated);
+    const user = useAuthStore(
+        (state) => state.user
+    );
+    const authHydrated =
+        useAuthStore(
+            (state) =>
+                state.hydrated
+        );
 
-    const [status, setStatus] = useState<
-        "checking" | "success" | "failed"
-    >("checking");
+    const [status, setStatus] =
+        useState<
+            | "checking"
+            | "success"
+            | "failed"
+        >("checking");
 
-    const [message, setMessage] = useState("Verifying your payment...");
+    const [message, setMessage] =
+        useState(
+            "Verifying your payment..."
+        );
+
+    const [
+        completedFulfilmentMethod,
+        setCompletedFulfilmentMethod,
+    ] =
+        useState<FulfilmentMethod | null>(
+            null
+        );
 
     useEffect(() => {
-        const verifyPayment = async () => {
-            try {
-                if (hasVerifiedRef.current) return;
-
-                if (!authHydrated) return;
-
-                hasVerifiedRef.current = true;
-
-                const reference =
-                    searchParams.get("reference") ||
-                    searchParams.get("trxref") ||
-                    pendingPayment?.reference;
-
-                if (!reference) {
-                    setStatus("failed");
-                    setMessage("No payment reference found.");
-                    return;
-                }
-
-                const items = pendingPayment?.items ?? [];
-                const total = pendingPayment?.totalPrice ?? 0;
-
-                if (!items.length || total <= 0) {
-                    setStatus("failed");
-                    setMessage(
-                        "Payment was verified, but your order details were not found. Please contact Allwear with your payment reference."
-                    );
-                    return;
-                }
-
-                const verifyUrl = `${VERIFY_URL}?reference=${encodeURIComponent(
-                    reference
-                )}`;
-
-                const verifyRes = await fetch(verifyUrl);
-                const verifyText = await verifyRes.text();
-
-                let verifyData: any = {};
-
+        const verifyPayment =
+            async () => {
                 try {
-                    verifyData = verifyText ? JSON.parse(verifyText) : {};
-                } catch {
-                    throw new Error(
-                        "Verification route did not return valid JSON."
-                    );
-                }
+                    if (
+                        hasVerifiedRef.current
+                    )
+                        return;
 
-                if (!verifyRes.ok) {
-                    throw new Error(
-                        verifyData?.message ||
-                            `Verification failed with status ${verifyRes.status}`
-                    );
-                }
+                    if (!authHydrated)
+                        return;
 
-                const success =
-                    verifyData?.success === true ||
-                    verifyData?.status === true ||
-                    verifyData?.data?.status === "success";
+                    hasVerifiedRef.current =
+                        true;
 
-                if (!success) {
-                    setStatus("failed");
-                    setMessage("Payment could not be confirmed.");
-                    return;
-                }
+                    const reference =
+                        searchParams.get(
+                            "reference"
+                        ) ||
+                        searchParams.get(
+                            "trxref"
+                        ) ||
+                        pendingPayment?.reference;
 
-                const quantity = items.reduce(
-                    (sum, item) => sum + item.quantity,
-                    0
-                );
+                    if (!reference) {
+                        setStatus(
+                            "failed"
+                        );
+                        setMessage(
+                            "No payment reference found."
+                        );
+                        return;
+                    }
 
-                const orderUserId = user?.accountId ?? user?.$id;
-                const orderEmail = user?.email;
+                    const items =
+                        pendingPayment?.items ??
+                        [];
 
-                if (!orderUserId || !orderEmail) {
-                    setStatus("failed");
-                    setMessage(
-                        "Payment was confirmed, but we could not find your logged-in account to save the order."
-                    );
-                    return;
-                }
+                    const pendingTotal =
+                        pendingPayment?.totalPrice ??
+                        0;
 
-                let deliveryDetails: any = null;
+                    if (!items.length) {
+                        setStatus(
+                            "failed"
+                        );
+                        setMessage(
+                            "Payment was verified, but your order details were not found. Please contact Allwear with your payment reference."
+                        );
+                        return;
+                    }
 
-                if (typeof window !== "undefined") {
-                    const storedDeliveryDetails = sessionStorage.getItem(
-                        "allwear_delivery_details"
-                    );
+                    const verifyUrl = `${VERIFY_URL}?reference=${encodeURIComponent(
+                        reference
+                    )}`;
 
-                    if (storedDeliveryDetails) {
-                        try {
-                            deliveryDetails = JSON.parse(
-                                storedDeliveryDetails
+                    const verifyRes =
+                        await fetch(
+                            verifyUrl
+                        );
+
+                    const verifyText =
+                        await verifyRes.text();
+
+                    let verifyData: any =
+                        {};
+
+                    try {
+                        verifyData =
+                            verifyText
+                                ? JSON.parse(
+                                      verifyText
+                                  )
+                                : {};
+                    } catch {
+                        throw new Error(
+                            "Verification route did not return valid JSON."
+                        );
+                    }
+
+                    if (!verifyRes.ok) {
+                        throw new Error(
+                            verifyData?.message ||
+                                `Verification failed with status ${verifyRes.status}`
+                        );
+                    }
+
+                    const success =
+                        verifyData?.success ===
+                            true ||
+                        verifyData?.status ===
+                            true ||
+                        verifyData?.data
+                            ?.status ===
+                            "success";
+
+                    if (!success) {
+                        setStatus(
+                            "failed"
+                        );
+                        setMessage(
+                            "Payment could not be confirmed."
+                        );
+                        return;
+                    }
+
+                    const quantity =
+                        items.reduce(
+                            (
+                                sum,
+                                item
+                            ) =>
+                                sum +
+                                item.quantity,
+                            0
+                        );
+
+                    const orderUserId =
+                        user?.accountId ??
+                        user?.$id;
+
+                    const orderEmail =
+                        user?.email;
+
+                    if (
+                        !orderUserId ||
+                        !orderEmail
+                    ) {
+                        setStatus(
+                            "failed"
+                        );
+                        setMessage(
+                            "Payment was confirmed, but we could not find your logged-in account to save the order."
+                        );
+                        return;
+                    }
+
+                    const metadata =
+                        verifyData?.data
+                            ?.metadata ??
+                        {};
+
+                    let storedFulfilmentDetails: any =
+                        null;
+
+                    if (
+                        typeof window !==
+                        "undefined"
+                    ) {
+                        const stored =
+                            sessionStorage.getItem(
+                                "allwear_fulfilment_details"
                             );
-                        } catch {
-                            deliveryDetails = storedDeliveryDetails;
+
+                        if (stored) {
+                            try {
+                                storedFulfilmentDetails =
+                                    JSON.parse(
+                                        stored
+                                    );
+                            } catch {
+                                storedFulfilmentDetails =
+                                    null;
+                            }
                         }
                     }
-                }
 
-                await createOrder({
-                    reference,
-                    email: orderEmail,
-                    accountId: orderUserId,
-                    userId: orderUserId,
+                    const fulfilmentMethod: FulfilmentMethod =
+                        metadata.fulfilmentMethod ===
+                            "collection" ||
+                        storedFulfilmentDetails?.fulfilmentMethod ===
+                            "collection"
+                            ? "collection"
+                            : "delivery";
 
-                    items: JSON.stringify(items),
-                    total,
+                    const verifiedDeliveryFee =
+                        Number(
+                            metadata.deliveryFee ??
+                                (fulfilmentMethod ===
+                                "collection"
+                                    ? 0
+                                    : DELIVERY_FEE)
+                        );
 
-                    status: "order_placed",
-                    trackingStatus: "order_placed",
+                    const paystackAmount =
+                        Number(
+                            verifyData?.data
+                                ?.amount ||
+                                0
+                        ) / 100;
 
-                    paidAt: new Date().toISOString(),
+                    const verifiedTotal =
+                        paystackAmount >
+                        0
+                            ? paystackAmount
+                            : pendingTotal;
 
-                    gateway_response: JSON.stringify({
-                        provider: "paystack",
+                    const verifiedSubtotal =
+                        Number(
+                            metadata.subtotal ??
+                                Math.max(
+                                    verifiedTotal -
+                                        verifiedDeliveryFee,
+                                    0
+                                )
+                        );
+
+                    const customerDetails =
+                        metadata.customerDetails ??
+                        storedFulfilmentDetails?.customerDetails ??
+                        null;
+
+                    const deliveryDetails =
+                        fulfilmentMethod ===
+                        "delivery"
+                            ? metadata.deliveryDetails ??
+                              storedFulfilmentDetails?.deliveryDetails ??
+                              null
+                            : null;
+
+                    const collectionDetails =
+                        fulfilmentMethod ===
+                        "collection"
+                            ? metadata.collectionDetails ??
+                              storedFulfilmentDetails?.collectionDetails ??
+                              {
+                                  name: "Allwear Factory Shop",
+                                  addressLine1:
+                                      "55 Albert Wessels Drive",
+                                  suburb:
+                                      "Riverside Industrial",
+                                  city: "Newcastle",
+                              }
+                            : null;
+
+                    await createOrder({
                         reference,
-                        status: verifyData?.data?.status ?? verifyData?.status,
-                        amount: verifyData?.data?.amount ?? verifyData?.amount,
-                        currency:
-                            verifyData?.data?.currency ?? verifyData?.currency,
-                        subtotal: Math.max(total - DELIVERY_FEE, 0),
-                        deliveryFee: items.length > 0 ? DELIVERY_FEE : 0,
-                        deliveryDetails,
-                    }),
+                        email:
+                            orderEmail,
+                        accountId:
+                            orderUserId,
+                        userId:
+                            orderUserId,
 
-                    distributorId: "6a3502a1001eae91ffd9",
-                    distributorName: "Allwear HQ",
-                });
+                        items:
+                            JSON.stringify(
+                                items
+                            ),
+                        total:
+                            verifiedTotal,
 
-                addOrder({
-                    id: reference,
-                    items,
-                    subtotal: Math.max(total - DELIVERY_FEE, 0),
-                    deliveryFee: items.length > 0 ? DELIVERY_FEE : 0,
-                    total,
-                    date: new Date().toISOString(),
-                    quantity,
-                });
+                        status:
+                            "order_placed",
+                        trackingStatus:
+                            "order_placed",
 
-                clearCart();
-                clearPendingPayment();
+                        paidAt:
+                            new Date().toISOString(),
 
-                if (typeof window !== "undefined") {
-                    sessionStorage.removeItem("allwear_delivery_details");
+                        gateway_response:
+                            JSON.stringify(
+                                {
+                                    provider:
+                                        "paystack",
+                                    reference,
+                                    status:
+                                        verifyData
+                                            ?.data
+                                            ?.status ??
+                                        verifyData?.status,
+                                    amount:
+                                        verifyData
+                                            ?.data
+                                            ?.amount ??
+                                        verifyData?.amount,
+                                    currency:
+                                        verifyData
+                                            ?.data
+                                            ?.currency ??
+                                        verifyData?.currency,
+                                    subtotal:
+                                        verifiedSubtotal,
+                                    fulfilmentMethod,
+                                    deliveryFee:
+                                        verifiedDeliveryFee,
+                                    couponCode:
+                                        metadata.couponCode ??
+                                        null,
+                                    couponDiscount:
+                                        Number(
+                                            metadata.couponDiscount ??
+                                                0
+                                        ),
+                                    customerDetails,
+                                    deliveryDetails,
+                                    collectionDetails,
+                                }
+                            ),
+
+                        distributorId:
+                            "6a3502a1001eae91ffd9",
+                        distributorName:
+                            "Allwear HQ",
+                    });
+
+                    addOrder({
+                        id: reference,
+                        items,
+                        subtotal:
+                            verifiedSubtotal,
+                        deliveryFee:
+                            verifiedDeliveryFee,
+                        total:
+                            verifiedTotal,
+                        date:
+                            new Date().toISOString(),
+                        quantity,
+                    });
+
+                    clearCart();
+                    clearPendingPayment();
+
+                    if (
+                        typeof window !==
+                        "undefined"
+                    ) {
+                        sessionStorage.removeItem(
+                            "allwear_fulfilment_details"
+                        );
+
+                        sessionStorage.removeItem(
+                            "allwear_delivery_details"
+                        );
+                    }
+
+                    setCompletedFulfilmentMethod(
+                        fulfilmentMethod
+                    );
+
+                    setStatus(
+                        "success"
+                    );
+
+                    setMessage(
+                        fulfilmentMethod ===
+                            "collection"
+                            ? "Payment confirmed. Your order has been placed for collection."
+                            : "Payment confirmed. Your order has been placed for delivery."
+                    );
+                } catch (error: any) {
+                    console.log(
+                        "SUCCESS PAGE ERROR:",
+                        error
+                    );
+
+                    setStatus(
+                        "failed"
+                    );
+
+                    setMessage(
+                        error?.message ||
+                            "Something went wrong while verifying payment."
+                    );
                 }
-
-                setStatus("success");
-                setMessage("Payment confirmed. Your order has been placed.");
-            } catch (error: any) {
-                console.log("SUCCESS PAGE ERROR:", error);
-
-                setStatus("failed");
-                setMessage(
-                    error?.message ||
-                        "Something went wrong while verifying payment."
-                );
-            }
-        };
+            };
 
         verifyPayment();
     }, [
@@ -205,29 +451,58 @@ function SuccessContent() {
             <div className="w-full max-w-lg rounded-3xl border border-zinc-100 bg-zinc-50 p-8 text-center">
                 <div
                     className={`mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full text-4xl ${
-                        status === "success"
+                        status ===
+                        "success"
                             ? "bg-[#6FC276] text-white"
-                            : status === "failed"
+                            : status ===
+                              "failed"
                             ? "bg-red-100 text-red-600"
                             : "bg-zinc-200 text-zinc-600"
                     }`}
                 >
-                    {status === "success"
+                    {status ===
+                    "success"
                         ? "✓"
-                        : status === "failed"
+                        : status ===
+                          "failed"
                         ? "!"
                         : "..."}
                 </div>
 
                 <h1 className="text-3xl font-black text-zinc-950">
-                    {status === "success"
+                    {status ===
+                    "success"
                         ? "Order Placed"
-                        : status === "failed"
+                        : status ===
+                          "failed"
                         ? "Payment Issue"
                         : "Checking Payment"}
                 </h1>
 
-                <p className="mt-3 text-zinc-600">{message}</p>
+                <p className="mt-3 text-zinc-600">
+                    {message}
+                </p>
+
+                {status === "success" &&
+                completedFulfilmentMethod ===
+                    "collection" ? (
+                    <div className="mt-6 rounded-2xl bg-white p-5 text-left ring-1 ring-zinc-100">
+                        <p className="text-xs font-black uppercase tracking-[0.2em] text-[#6FC276]">
+                            Collection Point
+                        </p>
+                        <p className="mt-2 text-lg font-black text-zinc-950">
+                            Allwear Factory Shop
+                        </p>
+                        <p className="mt-3 text-sm font-bold leading-6 text-zinc-600">
+                            55 Albert Wessels
+                            Drive
+                            <br />
+                            Riverside Industrial
+                            <br />
+                            Newcastle
+                        </p>
+                    </div>
+                ) : null}
 
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center">
                     <Link

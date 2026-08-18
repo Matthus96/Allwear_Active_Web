@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useRef, useState, useEffect } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -14,8 +14,18 @@ import {
     getSavedAddresses,
     type SavedAddress,
 } from "@/lib/addressBook";
+import { verifyCoupon } from "@/lib/appwrite";
 
 const DELIVERY_FEE = 100.0;
+
+const COLLECTION_LOCATION = {
+    name: "Allwear Factory Shop",
+    addressLine1: "55 Albert Wessels Drive",
+    suburb: "Riverside Industrial",
+    city: "Newcastle",
+};
+
+type FulfilmentMethod = "delivery" | "collection";
 
 export default function CheckoutPage() {
     const router = useRouter();
@@ -34,6 +44,13 @@ export default function CheckoutPage() {
     const [loading, setLoading] = useState(false);
     const lockRef = useRef(false);
 
+    const [fulfilmentMethod, setFulfilmentMethod] =
+        useState<FulfilmentMethod>("delivery");
+
+    const [couponCode, setCouponCode] = useState("");
+    const [couponDiscount, setCouponDiscount] = useState(0);
+    const [couponMessage, setCouponMessage] = useState("");
+
     const [form, setForm] = useState({
         fullName: user?.name || "",
         email: user?.email || "",
@@ -48,8 +65,16 @@ export default function CheckoutPage() {
     });
 
     const subtotal = totalPrice;
-    const deliveryFee = items.length > 0 ? DELIVERY_FEE : 0;
-    const finalTotal = subtotal + deliveryFee;
+
+    const deliveryFee =
+        items.length > 0 && fulfilmentMethod === "delivery"
+            ? DELIVERY_FEE
+            : 0;
+
+    const finalTotal = Math.max(
+        0,
+        subtotal + deliveryFee - couponDiscount
+    );
 
     const updateField = (field: keyof typeof form, value: string) => {
         setForm((prev) => ({
@@ -58,7 +83,7 @@ export default function CheckoutPage() {
         }));
     };
 
-    const handleSelectSavedAddress = (addressId: string) => {    
+    const handleSelectSavedAddress = (addressId: string) => {
         setSelectedAddressId(addressId);
 
         const selectedAddress = savedAddresses.find(
@@ -82,8 +107,19 @@ export default function CheckoutPage() {
         }));
     };
 
-        useEffect(() => {
+    useEffect(() => {
         setSavedAddresses(getSavedAddresses());
+
+        if (typeof window !== "undefined") {
+            const storedCoupon =
+                localStorage.getItem("allwear_coupon");
+
+            if (storedCoupon) {
+                setCouponCode(
+                    storedCoupon.trim().toUpperCase()
+                );
+            }
+        }
     }, []);
 
     useEffect(() => {
@@ -96,20 +132,106 @@ export default function CheckoutPage() {
         }));
     }, [user]);
 
+    useEffect(() => {
+        let cancelled = false;
+
+        const refreshCoupon = async () => {
+            if (!couponCode || items.length === 0) {
+                setCouponDiscount(0);
+                setCouponMessage("");
+                return;
+            }
+
+            try {
+                const result = await verifyCoupon({
+                    code: couponCode,
+                    subtotal,
+                    items: items.map((item) => ({
+                        productId: item.productId,
+                        quantity: item.quantity,
+                    })),
+                    accountId: user?.accountId,
+                    userId: user?.$id,
+                    email: user?.email,
+                });
+
+                if (cancelled) return;
+
+                setCouponMessage(result.message);
+
+                if (result.valid) {
+                    setCouponDiscount(
+                        Number(result.discount || 0)
+                    );
+                } else {
+                    setCouponDiscount(0);
+                }
+            } catch (error: any) {
+                if (cancelled) return;
+
+                setCouponDiscount(0);
+                setCouponMessage(
+                    error?.message ||
+                        "Could not re-check coupon."
+                );
+            }
+        };
+
+        refreshCoupon();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [
+        couponCode,
+        items,
+        subtotal,
+        user?.accountId,
+        user?.$id,
+        user?.email,
+    ]);
+
     const validateForm = () => {
-        if (!form.fullName.trim()) return "Please enter your full name.";
-        if (!form.email.trim()) return "Please enter your email address.";
-        if (!form.phone.trim()) return "Please enter your phone number.";
-        if (!form.addressLine1.trim()) return "Please enter your street address.";
-        if (!form.suburb.trim()) return "Please enter your suburb.";
-        if (!form.city.trim()) return "Please enter your city.";
-        if (!form.province.trim()) return "Please enter your province.";
-        if (!form.postalCode.trim()) return "Please enter your postal code.";
+        if (!form.fullName.trim()) {
+            return "Please enter your full name.";
+        }
+
+        if (!form.email.trim()) {
+            return "Please enter your email address.";
+        }
+
+        if (!form.phone.trim()) {
+            return "Please enter your phone number.";
+        }
+
+        if (fulfilmentMethod === "delivery") {
+            if (!form.addressLine1.trim()) {
+                return "Please enter your street address.";
+            }
+
+            if (!form.suburb.trim()) {
+                return "Please enter your suburb.";
+            }
+
+            if (!form.city.trim()) {
+                return "Please enter your city.";
+            }
+
+            if (!form.province.trim()) {
+                return "Please enter your province.";
+            }
+
+            if (!form.postalCode.trim()) {
+                return "Please enter your postal code.";
+            }
+        }
 
         return null;
     };
 
-    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (
+        event: FormEvent<HTMLFormElement>
+    ) => {
         event.preventDefault();
 
         if (loading || lockRef.current) return;
@@ -125,7 +247,9 @@ export default function CheckoutPage() {
             }
 
             if (!hydrated || authLoading) {
-                alert("Checking your account. Please try again in a moment.");
+                alert(
+                    "Checking your account. Please try again in a moment."
+                );
                 return;
             }
 
@@ -141,57 +265,104 @@ export default function CheckoutPage() {
                 return;
             }
 
-            const deliveryDetails = {
+            const customerDetails = {
                 fullName: form.fullName.trim(),
                 email: form.email.trim(),
                 phone: form.phone.trim(),
-                addressLine1: form.addressLine1.trim(),
-                addressLine2: form.addressLine2.trim(),
-                suburb: form.suburb.trim(),
-                city: form.city.trim(),
-                province: form.province.trim(),
-                postalCode: form.postalCode.trim(),
-                deliveryNotes: form.deliveryNotes.trim(),
+                notes: form.deliveryNotes.trim(),
             };
 
-            const initRes = await fetch("/api/paystack/init", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    email: user.email,
-                    userId: user.$id,
-                    amount: finalTotal,
-                    items,
-                    subtotal,
-                    deliveryFee,
-                    deliveryDetails,
-                }),
-            });
+            const deliveryDetails =
+                fulfilmentMethod === "delivery"
+                    ? {
+                          fullName: form.fullName.trim(),
+                          email: form.email.trim(),
+                          phone: form.phone.trim(),
+                          addressLine1:
+                              form.addressLine1.trim(),
+                          addressLine2:
+                              form.addressLine2.trim(),
+                          suburb: form.suburb.trim(),
+                          city: form.city.trim(),
+                          province: form.province.trim(),
+                          postalCode:
+                              form.postalCode.trim(),
+                          deliveryNotes:
+                              form.deliveryNotes.trim(),
+                      }
+                    : null;
+
+            const initRes = await fetch(
+                "/api/paystack/init",
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        email: user.email,
+                        userId: user.$id,
+                        accountId:
+                            user?.accountId ?? "",
+                        items,
+                        subtotal,
+                        fulfilmentMethod,
+                        deliveryFee,
+                        customerDetails,
+                        deliveryDetails,
+                        couponCode:
+                            couponCode || null,
+                    }),
+                }
+            );
 
             const initData = await initRes.json();
 
-            if (!initRes.ok || !initData?.authorization_url) {
-                throw new Error(initData?.message || "Payment init failed");
-            }
-
-            useCartStore.getState().setPendingPayment({
-                reference: initData.reference,
-                items,
-                totalPrice: finalTotal,
-            });
-
-            if (typeof window !== "undefined") {
-                sessionStorage.setItem(
-                    "allwear_delivery_details",
-                    JSON.stringify(deliveryDetails)
+            if (
+                !initRes.ok ||
+                !initData?.authorization_url
+            ) {
+                throw new Error(
+                    initData?.message ||
+                        "Payment init failed"
                 );
             }
 
-            window.location.href = initData.authorization_url;
+            const verifiedAmount = Number(
+                initData.amount ?? finalTotal
+            );
+
+            useCartStore
+                .getState()
+                .setPendingPayment({
+                    reference: initData.reference,
+                    items,
+                    totalPrice: verifiedAmount,
+                });
+
+            if (typeof window !== "undefined") {
+                sessionStorage.setItem(
+                    "allwear_fulfilment_details",
+                    JSON.stringify({
+                        fulfilmentMethod,
+                        customerDetails,
+                        deliveryDetails,
+                        collectionDetails:
+                            fulfilmentMethod ===
+                            "collection"
+                                ? COLLECTION_LOCATION
+                                : null,
+                    })
+                );
+            }
+
+            window.location.href =
+                initData.authorization_url;
         } catch (error: any) {
-            alert(error?.message || "Something went wrong.");
+            alert(
+                error?.message ||
+                    "Something went wrong."
+            );
         } finally {
             setLoading(false);
             lockRef.current = false;
@@ -207,16 +378,17 @@ export default function CheckoutPage() {
 
                 <div className="relative mx-auto max-w-7xl">
                     <p className="text-sm font-black uppercase tracking-[0.25em] text-[#6FC276]">
-                        Delivery Details
+                        Fulfilment Details
                     </p>
 
                     <h1 className="mt-4 max-w-3xl text-4xl font-black tracking-tight md:text-6xl">
-                        Where should we deliver?
+                        Delivery or collection?
                     </h1>
 
                     <p className="mt-5 max-w-2xl text-sm leading-7 text-zinc-300 md:text-base">
-                        Confirm your delivery information before continuing to
-                        secure payment.
+                        Choose how you want to receive your
+                        order before continuing to secure
+                        payment.
                     </p>
                 </div>
             </section>
@@ -226,34 +398,85 @@ export default function CheckoutPage() {
                     onSubmit={handleSubmit}
                     className="min-w-0 rounded-[2rem] bg-zinc-50 p-5 ring-1 ring-zinc-100 sm:p-8"
                 >
-
-                    {savedAddresses.length > 0 ? (
-                        <div className="mb-6 rounded-[2rem] bg-zinc-50 p-5 ring-1 ring-zinc-100">
-                            <p className="text-sm font-black uppercase tracking-[0.2em] text-[#6FC276]">
-                                Saved Addresses
-                            </p>
-
-                            <h3 className="mt-2 text-xl font-black text-zinc-950">
-                                Use a saved delivery address
-                            </h3>
-
-                            <select
-                                value={selectedAddressId}
-                                onChange={(e) => handleSelectSavedAddress(e.target.value)}
-                                className="mt-4 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm font-bold text-zinc-700 outline-none focus:border-[#6FC276]"
-                            >
-                                <option value="">Choose saved address</option>
-
-                                {savedAddresses.map((address) => (
-                                    <option key={address.id} value={address.id}>
-                                        {address.label} — {address.addressLine1}, {address.city}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    ) : null}
-
                     <div className="mb-8">
+                        <p className="text-sm font-black uppercase tracking-[0.2em] text-[#6FC276]">
+                            Receive Your Order
+                        </p>
+
+                        <h2 className="mt-2 text-3xl font-black text-zinc-950">
+                            Choose an option
+                        </h2>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setFulfilmentMethod(
+                                    "delivery"
+                                )
+                            }
+                            className={`rounded-[1.5rem] p-5 text-left ring-1 transition ${
+                                fulfilmentMethod ===
+                                "delivery"
+                                    ? "bg-zinc-950 text-white ring-zinc-950"
+                                    : "bg-white text-zinc-950 ring-zinc-200 hover:ring-[#6FC276]"
+                            }`}
+                        >
+                            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#6FC276]">
+                                Delivery
+                            </p>
+                            <p className="mt-2 text-xl font-black">
+                                Courier delivery
+                            </p>
+                            <p
+                                className={`mt-2 text-sm ${
+                                    fulfilmentMethod ===
+                                    "delivery"
+                                        ? "text-zinc-300"
+                                        : "text-zinc-500"
+                                }`}
+                            >
+                                Flat delivery fee of
+                                R100.00.
+                            </p>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setFulfilmentMethod(
+                                    "collection"
+                                )
+                            }
+                            className={`rounded-[1.5rem] p-5 text-left ring-1 transition ${
+                                fulfilmentMethod ===
+                                "collection"
+                                    ? "bg-zinc-950 text-white ring-zinc-950"
+                                    : "bg-white text-zinc-950 ring-zinc-200 hover:ring-[#6FC276]"
+                            }`}
+                        >
+                            <p className="text-xs font-black uppercase tracking-[0.2em] text-[#6FC276]">
+                                Collection
+                            </p>
+                            <p className="mt-2 text-xl font-black">
+                                Factory shop pickup
+                            </p>
+                            <p
+                                className={`mt-2 text-sm ${
+                                    fulfilmentMethod ===
+                                    "collection"
+                                        ? "text-zinc-300"
+                                        : "text-zinc-500"
+                                }`}
+                            >
+                                Free collection from
+                                Allwear in Newcastle.
+                            </p>
+                        </button>
+                    </div>
+
+                    <div className="mb-8 mt-10">
                         <p className="text-sm font-black uppercase tracking-[0.2em] text-[#6FC276]">
                             Customer Information
                         </p>
@@ -267,7 +490,10 @@ export default function CheckoutPage() {
                         <input
                             value={form.fullName}
                             onChange={(e) =>
-                                updateField("fullName", e.target.value)
+                                updateField(
+                                    "fullName",
+                                    e.target.value
+                                )
                             }
                             placeholder="Full name"
                             className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm font-semibold outline-none focus:border-[#6FC276]"
@@ -276,7 +502,10 @@ export default function CheckoutPage() {
                         <input
                             value={form.email}
                             onChange={(e) =>
-                                updateField("email", e.target.value)
+                                updateField(
+                                    "email",
+                                    e.target.value
+                                )
                             }
                             placeholder="Email address"
                             type="email"
@@ -286,95 +515,242 @@ export default function CheckoutPage() {
                         <input
                             value={form.phone}
                             onChange={(e) =>
-                                updateField("phone", e.target.value)
+                                updateField(
+                                    "phone",
+                                    e.target.value
+                                )
                             }
                             placeholder="Phone number"
                             className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm font-semibold outline-none focus:border-[#6FC276] sm:col-span-2"
                         />
                     </div>
 
-                    <div className="mb-8 mt-10">
-                        <p className="text-sm font-black uppercase tracking-[0.2em] text-[#6FC276]">
-                            Delivery Address
-                        </p>
+                    {fulfilmentMethod ===
+                    "delivery" ? (
+                        <>
+                            {savedAddresses.length >
+                            0 ? (
+                                <div className="mt-8 rounded-[2rem] bg-white p-5 ring-1 ring-zinc-100">
+                                    <p className="text-sm font-black uppercase tracking-[0.2em] text-[#6FC276]">
+                                        Saved Addresses
+                                    </p>
 
-                        <h2 className="mt-2 text-3xl font-black text-zinc-950">
-                            Address details
-                        </h2>
-                    </div>
+                                    <h3 className="mt-2 text-xl font-black text-zinc-950">
+                                        Use a saved
+                                        delivery address
+                                    </h3>
 
-                    <div className="grid gap-4">
-                        <input
-                            value={form.addressLine1}
-                            onChange={(e) =>
-                                updateField("addressLine1", e.target.value)
-                            }
-                            placeholder="Street address"
-                            className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm font-semibold outline-none focus:border-[#6FC276]"
-                        />
+                                    <select
+                                        value={
+                                            selectedAddressId
+                                        }
+                                        onChange={(e) =>
+                                            handleSelectSavedAddress(
+                                                e.target
+                                                    .value
+                                            )
+                                        }
+                                        className="mt-4 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm font-bold text-zinc-700 outline-none focus:border-[#6FC276]"
+                                    >
+                                        <option value="">
+                                            Choose saved
+                                            address
+                                        </option>
 
-                        <input
-                            value={form.addressLine2}
-                            onChange={(e) =>
-                                updateField("addressLine2", e.target.value)
-                            }
-                            placeholder="Apartment, unit, complex, business name etc. optional"
-                            className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm font-semibold outline-none focus:border-[#6FC276]"
-                        />
+                                        {savedAddresses.map(
+                                            (address) => (
+                                                <option
+                                                    key={
+                                                        address.id
+                                                    }
+                                                    value={
+                                                        address.id
+                                                    }
+                                                >
+                                                    {
+                                                        address.label
+                                                    }{" "}
+                                                    —{" "}
+                                                    {
+                                                        address.addressLine1
+                                                    }
+                                                    ,{" "}
+                                                    {
+                                                        address.city
+                                                    }
+                                                </option>
+                                            )
+                                        )}
+                                    </select>
+                                </div>
+                            ) : null}
 
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <input
-                                value={form.suburb}
-                                onChange={(e) =>
-                                    updateField("suburb", e.target.value)
+                            <div className="mb-8 mt-10">
+                                <p className="text-sm font-black uppercase tracking-[0.2em] text-[#6FC276]">
+                                    Delivery Address
+                                </p>
+
+                                <h2 className="mt-2 text-3xl font-black text-zinc-950">
+                                    Address details
+                                </h2>
+                            </div>
+
+                            <div className="grid gap-4">
+                                <input
+                                    value={
+                                        form.addressLine1
+                                    }
+                                    onChange={(e) =>
+                                        updateField(
+                                            "addressLine1",
+                                            e.target.value
+                                        )
+                                    }
+                                    placeholder="Street address"
+                                    className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm font-semibold outline-none focus:border-[#6FC276]"
+                                />
+
+                                <input
+                                    value={
+                                        form.addressLine2
+                                    }
+                                    onChange={(e) =>
+                                        updateField(
+                                            "addressLine2",
+                                            e.target.value
+                                        )
+                                    }
+                                    placeholder="Apartment, unit, complex, business name etc. optional"
+                                    className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm font-semibold outline-none focus:border-[#6FC276]"
+                                />
+
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    <input
+                                        value={
+                                            form.suburb
+                                        }
+                                        onChange={(e) =>
+                                            updateField(
+                                                "suburb",
+                                                e.target
+                                                    .value
+                                            )
+                                        }
+                                        placeholder="Suburb"
+                                        className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm font-semibold outline-none focus:border-[#6FC276]"
+                                    />
+
+                                    <input
+                                        value={form.city}
+                                        onChange={(e) =>
+                                            updateField(
+                                                "city",
+                                                e.target
+                                                    .value
+                                            )
+                                        }
+                                        placeholder="City"
+                                        className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm font-semibold outline-none focus:border-[#6FC276]"
+                                    />
+
+                                    <input
+                                        value={
+                                            form.province
+                                        }
+                                        onChange={(e) =>
+                                            updateField(
+                                                "province",
+                                                e.target
+                                                    .value
+                                            )
+                                        }
+                                        placeholder="Province"
+                                        className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm font-semibold outline-none focus:border-[#6FC276]"
+                                    />
+
+                                    <input
+                                        value={
+                                            form.postalCode
+                                        }
+                                        onChange={(e) =>
+                                            updateField(
+                                                "postalCode",
+                                                e.target
+                                                    .value
+                                            )
+                                        }
+                                        placeholder="Postal code"
+                                        className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm font-semibold outline-none focus:border-[#6FC276]"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="mt-6 rounded-2xl bg-white p-4 text-sm font-bold text-zinc-500 ring-1 ring-zinc-100">
+                                Want to save delivery
+                                details for next time?{" "}
+                                <Link
+                                    href="/addresses"
+                                    className="text-[#6FC276]"
+                                >
+                                    Manage Address Book
+                                </Link>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="mt-10 rounded-[2rem] bg-white p-6 ring-1 ring-zinc-100">
+                            <p className="text-sm font-black uppercase tracking-[0.2em] text-[#6FC276]">
+                                Collection Point
+                            </p>
+
+                            <h2 className="mt-2 text-2xl font-black text-zinc-950">
+                                {
+                                    COLLECTION_LOCATION.name
                                 }
-                                placeholder="Suburb"
-                                className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm font-semibold outline-none focus:border-[#6FC276]"
-                            />
+                            </h2>
 
-                            <input
-                                value={form.city}
-                                onChange={(e) =>
-                                    updateField("city", e.target.value)
-                                }
-                                placeholder="City"
-                                className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm font-semibold outline-none focus:border-[#6FC276]"
-                            />
+                            <div className="mt-4 space-y-1 text-sm font-bold leading-6 text-zinc-600">
+                                <p>
+                                    {
+                                        COLLECTION_LOCATION.addressLine1
+                                    }
+                                </p>
+                                <p>
+                                    {
+                                        COLLECTION_LOCATION.suburb
+                                    }
+                                </p>
+                                <p>
+                                    {
+                                        COLLECTION_LOCATION.city
+                                    }
+                                </p>
+                            </div>
 
-                            <input
-                                value={form.province}
-                                onChange={(e) =>
-                                    updateField("province", e.target.value)
-                                }
-                                placeholder="Province"
-                                className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm font-semibold outline-none focus:border-[#6FC276]"
-                            />
-
-                            <input
-                                value={form.postalCode}
-                                onChange={(e) =>
-                                    updateField("postalCode", e.target.value)
-                                }
-                                placeholder="Postal code"
-                                className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm font-semibold outline-none focus:border-[#6FC276]"
-                            />
+                            <p className="mt-4 text-sm leading-6 text-zinc-500">
+                                We will use your contact
+                                details above to contact you
+                                about your collection.
+                            </p>
                         </div>
+                    )}
 
+                    <div className="mt-6">
                         <textarea
                             value={form.deliveryNotes}
                             onChange={(e) =>
-                                updateField("deliveryNotes", e.target.value)
+                                updateField(
+                                    "deliveryNotes",
+                                    e.target.value
+                                )
                             }
-                            placeholder="Delivery notes optional"
+                            placeholder={
+                                fulfilmentMethod ===
+                                "collection"
+                                    ? "Collection notes optional"
+                                    : "Delivery notes optional"
+                            }
                             className="min-h-32 w-full rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-sm font-semibold outline-none focus:border-[#6FC276]"
                         />
-                    </div>
-
-                    <div className="mb-6 rounded-2xl bg-white p-4 text-sm font-bold text-zinc-500 ring-1 ring-zinc-100">
-                        Want to save delivery details for next time?{" "}
-                        <Link href="/addresses" className="text-[#6FC276]">
-                            Manage Address Book
-                        </Link>
                     </div>
 
                     <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -383,7 +759,9 @@ export default function CheckoutPage() {
                             disabled={loading}
                             className="w-full rounded-full bg-[#6FC276] px-6 py-4 text-sm font-black uppercase tracking-wide text-white transition hover:bg-zinc-950 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
                         >
-                            {loading ? "Processing..." : "Continue to Payment"}
+                            {loading
+                                ? "Processing..."
+                                : "Continue to Payment"}
                         </button>
 
                         <Link
@@ -401,7 +779,8 @@ export default function CheckoutPage() {
                     </p>
 
                     <h2 className="mt-2 text-2xl font-black text-zinc-950">
-                        {totalItems} item{totalItems === 1 ? "" : "s"}
+                        {totalItems} item
+                        {totalItems === 1 ? "" : "s"}
                     </h2>
 
                     <div className="mt-6 space-y-3">
@@ -412,19 +791,34 @@ export default function CheckoutPage() {
                             >
                                 <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-zinc-50 p-2">
                                     <img
-                                        src={item.stockSnapshot.image_url}
-                                        alt={item.stockSnapshot.name}
+                                        src={
+                                            item
+                                                .stockSnapshot
+                                                .image_url
+                                        }
+                                        alt={
+                                            item
+                                                .stockSnapshot
+                                                .name
+                                        }
                                         className="h-full w-full object-contain"
                                     />
                                 </div>
 
                                 <div className="min-w-0 flex-1">
                                     <p className="line-clamp-2 text-sm font-black text-zinc-950">
-                                        {item.stockSnapshot.name}
+                                        {
+                                            item
+                                                .stockSnapshot
+                                                .name
+                                        }
                                     </p>
 
                                     <p className="mt-1 text-xs font-bold text-zinc-500">
-                                        Size: {item.size ?? "default"} · Qty:{" "}
+                                        Size:{" "}
+                                        {item.size ??
+                                            "default"}{" "}
+                                        · Qty:{" "}
                                         {item.quantity}
                                     </p>
                                 </div>
@@ -434,18 +828,46 @@ export default function CheckoutPage() {
 
                     <div className="mt-6 space-y-4 rounded-[1.5rem] bg-white p-5 ring-1 ring-zinc-100">
                         <div className="flex justify-between text-sm">
-                            <span className="text-zinc-500">Subtotal</span>
+                            <span className="text-zinc-500">
+                                Subtotal
+                            </span>
                             <span className="font-black text-zinc-950">
                                 R{subtotal.toFixed(2)}
                             </span>
                         </div>
 
                         <div className="flex justify-between text-sm">
-                            <span className="text-zinc-500">Delivery</span>
+                            <span className="text-zinc-500">
+                                {fulfilmentMethod ===
+                                "collection"
+                                    ? "Collection"
+                                    : "Delivery"}
+                            </span>
                             <span className="font-black text-zinc-950">
-                                R{deliveryFee.toFixed(2)}
+                                {deliveryFee === 0
+                                    ? "FREE"
+                                    : `R${deliveryFee.toFixed(
+                                          2
+                                      )}`}
                             </span>
                         </div>
+
+                        {couponDiscount > 0 ? (
+                            <div className="flex justify-between text-sm">
+                                <span className="text-zinc-500">
+                                    Coupon{" "}
+                                    {couponCode
+                                        ? `(${couponCode})`
+                                        : ""}
+                                </span>
+                                <span className="font-black text-[#6FC276]">
+                                    -R
+                                    {couponDiscount.toFixed(
+                                        2
+                                    )}
+                                </span>
+                            </div>
+                        ) : null}
 
                         <div className="border-t border-zinc-200 pt-4">
                             <div className="flex justify-between text-lg">
@@ -459,12 +881,22 @@ export default function CheckoutPage() {
                         </div>
                     </div>
 
+                    {couponCode ? (
+                        <p className="mt-4 text-sm font-bold leading-6 text-zinc-500">
+                            Coupon{" "}
+                            <span className="text-zinc-950">
+                                {couponCode}
+                            </span>{" "}
+                            {couponMessage
+                                ? `— ${couponMessage}`
+                                : "will be revalidated before payment."}
+                        </p>
+                    ) : null}
+
                     <p className="mt-5 text-sm leading-6 text-zinc-500">
-                        Delivery is currently charged at a flat rate of{" "}
-                        <span className="font-black text-zinc-950">
-                            R100.00
-                        </span>
-                        .
+                        {fulfilmentMethod === "collection"
+                            ? "Collection is free from the Allwear Factory Shop."
+                            : "Delivery is charged at a flat rate of R100.00."}
                     </p>
                 </aside>
             </section>
