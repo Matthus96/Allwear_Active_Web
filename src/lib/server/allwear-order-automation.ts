@@ -7,7 +7,7 @@ import {
 } from "@/lib/server/invoice-pdf";
 
 const DATABASE_ID = "6a056e4c0007e2f52631";
-const ORDERS_COLLECTION_ID = "orders";
+const ORDERS_TABLE_ID = "orders";
 const DEFAULT_DISTRIBUTOR_ID = "6a3502a1001eae91ffd9";
 const DEFAULT_DISTRIBUTOR_NAME = "Allwear HQ";
 
@@ -111,7 +111,7 @@ const readResponse = async (response: Response) => {
 const getOrderDocument = async (documentId: string) => {
     const response = await fetch(
         appwriteUrl(
-            `/databases/${DATABASE_ID}/collections/${ORDERS_COLLECTION_ID}/documents/${encodeURIComponent(
+            `/tablesdb/${DATABASE_ID}/tables/${ORDERS_TABLE_ID}/rows/${encodeURIComponent(
                 documentId
             )}`
         ),
@@ -182,13 +182,13 @@ const createOrderDocument = async ({
 
     const response = await fetch(
         appwriteUrl(
-            `/databases/${DATABASE_ID}/collections/${ORDERS_COLLECTION_ID}/documents`
+            `/tablesdb/${DATABASE_ID}/tables/${ORDERS_TABLE_ID}/rows`
         ),
         {
             method: "POST",
             headers: appwriteHeaders(),
             body: JSON.stringify({
-                documentId,
+                rowId: documentId,
                 data: {
                     reference: transaction.reference,
                     email: customerEmail,
@@ -225,7 +225,7 @@ const createOrderDocument = async ({
 const updateGatewayResponse = async (order: any, gatewayResponse: any) => {
     const response = await fetch(
         appwriteUrl(
-            `/databases/${DATABASE_ID}/collections/${ORDERS_COLLECTION_ID}/documents/${encodeURIComponent(
+            `/tablesdb/${DATABASE_ID}/tables/${ORDERS_TABLE_ID}/rows/${encodeURIComponent(
                 order.$id
             )}`
         ),
