@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 
+import { finalizePaidAllwearOrder } from "@/lib/server/allwear-order-automation";
+
+export const runtime = "nodejs";
+
 export async function GET(request: Request) {
     try {
         const secretKey = process.env.PAYSTACK_SECRET_KEY;
@@ -28,6 +32,7 @@ export async function GET(request: Request) {
                 headers: {
                     Authorization: `Bearer ${secretKey}`,
                 },
+                cache: "no-store",
             }
         );
 
@@ -45,6 +50,28 @@ export async function GET(request: Request) {
         }
 
         const paid = data?.data?.status === "success";
+        let automation: any = null;
+
+        if (paid) {
+            try {
+                automation = await finalizePaidAllwearOrder(data?.data);
+            } catch (automationError: any) {
+                // Do not tell a customer their payment failed when only the
+                // downstream invoice email/order automation needs retrying.
+                console.error(
+                    "PAYSTACK VERIFY AUTOMATION ERROR:",
+                    automationError
+                );
+
+                automation = {
+                    processed: false,
+                    retryRequired: true,
+                    message:
+                        automationError?.message ||
+                        "Invoice automation needs retrying.",
+                };
+            }
+        }
 
         return NextResponse.json({
             success: paid,
@@ -53,9 +80,10 @@ export async function GET(request: Request) {
             status: data?.data?.status,
             amount: data?.data?.amount,
             currency: data?.data?.currency,
+            automation,
             data: data?.data,
         });
-        } catch (error: any) {
+    } catch (error: any) {
         console.error("PAYSTACK VERIFY ROUTE ERROR:", error);
 
         return NextResponse.json(
