@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import useIsDistributor from "@/hooks/useIsDistributor";
 
 import {
     appwriteConfig,
@@ -74,6 +75,15 @@ type DeliveryDetails = {
     deliveryNotes?: string;
 };
 
+type FulfilmentMethod = "delivery" | "collection";
+
+type CollectionDetails = {
+    name?: string;
+    addressLine1?: string;
+    suburb?: string;
+    city?: string;
+};
+
 type ParsedGatewayResponse = {
     provider?: string;
     reference?: string;
@@ -81,20 +91,59 @@ type ParsedGatewayResponse = {
     amount?: number;
     currency?: string;
     subtotal?: number;
+    fulfilmentMethod?: FulfilmentMethod;
     deliveryFee?: number;
     deliveryDetails?: DeliveryDetails | null;
+    collectionDetails?: CollectionDetails | null;
 };
 
-const trackingActions: {
+const getTrackingActions = (
+    trackingStatus: string,
+    fulfilmentMethod: FulfilmentMethod
+): {
     label: string;
     value: OrderTrackingStatus;
-}[] = [
-    { label: "Confirm", value: "confirmed" },
-    { label: "Preparing", value: "preparing" },
-    { label: "Out for delivery", value: "out_for_delivery" },
-    { label: "Delivered", value: "delivered" },
-    { label: "Cancel", value: "cancelled" },
-];
+}[] => {
+    switch (trackingStatus) {
+        case "order_placed":
+            return [
+                { label: "Confirm Order", value: "confirmed" },
+                { label: "Cancel", value: "cancelled" },
+            ];
+
+        case "confirmed":
+            return [
+                { label: "Mark Preparing", value: "preparing" },
+                { label: "Cancel", value: "cancelled" },
+            ];
+
+        case "preparing":
+            return [
+                {
+                    label:
+                        fulfilmentMethod === "collection"
+                            ? "Ready for Collection"
+                            : "Out for Delivery",
+                    value: "out_for_delivery",
+                },
+                { label: "Cancel", value: "cancelled" },
+            ];
+
+        case "out_for_delivery":
+            return [
+                {
+                    label:
+                        fulfilmentMethod === "collection"
+                            ? "Mark Collected"
+                            : "Mark Delivered",
+                    value: "delivered",
+                },
+            ];
+
+        default:
+            return [];
+    }
+};
 
 const orderFilters: {
     label: string;
@@ -104,8 +153,8 @@ const orderFilters: {
     { label: "Order placed", value: "order_placed" },
     { label: "Confirmed", value: "confirmed" },
     { label: "Preparing", value: "preparing" },
-    { label: "Out for delivery", value: "out_for_delivery" },
-    { label: "Delivered", value: "delivered" },
+    { label: "Out / Ready", value: "out_for_delivery" },
+    { label: "Delivered / Collected", value: "delivered" },
     { label: "Cancelled", value: "cancelled" },
 ];
 
@@ -113,8 +162,25 @@ const formatCurrency = (value?: number) => {
     return `R${Number(value || 0).toFixed(2)}`;
 };
 
-const formatStatus = (status?: string) => {
+const formatStatus = (
+    status?: string,
+    fulfilmentMethod: FulfilmentMethod = "delivery"
+) => {
     if (!status) return "Order placed";
+
+    if (
+        fulfilmentMethod === "collection" &&
+        status === "out_for_delivery"
+    ) {
+        return "Ready for collection";
+    }
+
+    if (
+        fulfilmentMethod === "collection" &&
+        status === "delivered"
+    ) {
+        return "Collected";
+    }
 
     return status
         .replaceAll("_", " ")
@@ -191,6 +257,8 @@ const getItemUnitPrice = (item: ParsedOrderItem) => {
 };
 
 export default function DistributorOrdersPage() {
+    const { isDistributor, checkingDistributor } = useIsDistributor();
+
     const [orders, setOrders] = useState<OrderDoc[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -233,6 +301,10 @@ export default function DistributorOrdersPage() {
     }, [orders, selectedFilter]);
 
     useEffect(() => {
+        if (checkingDistributor || !isDistributor) {
+            return;
+        }
+
         loadOrders(true);
 
         const interval = window.setInterval(() => {
@@ -242,7 +314,7 @@ export default function DistributorOrdersPage() {
         return () => {
             window.clearInterval(interval);
         };
-    }, []);
+    }, [checkingDistributor, isDistributor]);
 
     const handleUpdateStatus = async (
         orderId: string,
@@ -263,6 +335,49 @@ export default function DistributorOrdersPage() {
             setUpdatingOrderId("");
         }
     };
+
+    if (checkingDistributor) {
+        return (
+            <main className="min-h-screen bg-white">
+                <Navbar />
+                <div className="mx-auto flex min-h-[60vh] max-w-7xl items-center justify-center px-5">
+                    <p className="font-bold text-zinc-500">
+                        Checking distributor access...
+                    </p>
+                </div>
+                <Footer />
+            </main>
+        );
+    }
+
+    if (!isDistributor) {
+        return (
+            <main className="min-h-screen bg-white">
+                <Navbar />
+                <section className="mx-auto flex min-h-[60vh] max-w-3xl items-center px-5 py-16">
+                    <div className="w-full rounded-[3rem] bg-zinc-50 p-8 text-center ring-1 ring-zinc-100 md:p-12">
+                        <p className="text-sm font-black uppercase tracking-[0.25em] text-[#6FC276]">
+                            Restricted Area
+                        </p>
+                        <h1 className="mt-4 text-4xl font-black text-zinc-950">
+                            Distributor access only.
+                        </h1>
+                        <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-zinc-500">
+                            This dashboard is available only to accounts in the
+                            Allwear distributor team.
+                        </p>
+                        <Link
+                            href="/account"
+                            className="mt-8 inline-flex rounded-full bg-zinc-950 px-7 py-3 text-sm font-black text-white transition hover:bg-[#6FC276]"
+                        >
+                            Back to Account
+                        </Link>
+                    </div>
+                </section>
+                <Footer />
+            </main>
+        );
+    }
 
     return (
         <main className="min-h-screen overflow-x-hidden bg-white">
@@ -372,8 +487,17 @@ export default function DistributorOrdersPage() {
                                 order.gateway_response
                             );
                             const deliveryDetails = gateway?.deliveryDetails;
+                            const fulfilmentMethod: FulfilmentMethod =
+                                gateway?.fulfilmentMethod === "collection"
+                                    ? "collection"
+                                    : "delivery";
+                            const collectionDetails = gateway?.collectionDetails;
                             const trackingStatus =
                                 order.trackingStatus || "order_placed";
+                            const availableActions = getTrackingActions(
+                                trackingStatus,
+                                fulfilmentMethod
+                            );
                             const isUpdating = updatingOrderId === order.$id;
 
                             return (
@@ -414,9 +538,17 @@ export default function DistributorOrdersPage() {
                                                     Paid
                                                 </span>
 
+                                                <span className="rounded-full bg-blue-50 px-4 py-2 text-xs font-black uppercase text-blue-700">
+                                                    {fulfilmentMethod ===
+                                                    "collection"
+                                                        ? "Collection"
+                                                        : "Delivery"}
+                                                </span>
+
                                                 <span className="rounded-full bg-white px-4 py-2 text-xs font-black uppercase text-zinc-700 ring-1 ring-zinc-100">
                                                     {formatStatus(
-                                                        trackingStatus
+                                                        trackingStatus,
+                                                        fulfilmentMethod
                                                     )}
                                                 </span>
                                             </div>
@@ -493,7 +625,32 @@ export default function DistributorOrdersPage() {
                                                 )}
                                             </div>
 
-                                            {deliveryDetails ? (
+                                            {fulfilmentMethod === "collection" ? (
+                                                <div className="mt-6 rounded-[2rem] bg-zinc-50 p-5 ring-1 ring-zinc-100">
+                                                    <p className="text-sm font-black uppercase tracking-[0.2em] text-[#6FC276]">
+                                                        Collection Details
+                                                    </p>
+
+                                                    <h4 className="mt-2 text-xl font-black text-zinc-950">
+                                                        {collectionDetails?.name ||
+                                                            "Allwear Factory Shop"}
+                                                    </h4>
+
+                                                    <div className="mt-3 space-y-1 text-sm leading-6 text-zinc-600">
+                                                        <p>
+                                                            {collectionDetails?.addressLine1 ||
+                                                                "55 Albert Wessels Drive"}
+                                                        </p>
+                                                        <p>
+                                                            {collectionDetails?.suburb ||
+                                                                "Riverside Industrial"}
+                                                            ,{" "}
+                                                            {collectionDetails?.city ||
+                                                                "Newcastle"}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ) : deliveryDetails ? (
                                                 <div className="mt-6 rounded-[2rem] bg-zinc-50 p-5 ring-1 ring-zinc-100">
                                                     <p className="text-sm font-black uppercase tracking-[0.2em] text-[#6FC276]">
                                                         Delivery Details
@@ -599,13 +756,14 @@ export default function DistributorOrdersPage() {
 
                                                 <p className="mt-1 text-xl font-black text-zinc-950">
                                                     {formatStatus(
-                                                        trackingStatus
+                                                        trackingStatus,
+                                                        fulfilmentMethod
                                                     )}
                                                 </p>
                                             </div>
 
                                             <div className="mt-5 grid gap-3">
-                                                {trackingActions.map(
+                                                {availableActions.map(
                                                     (action) => (
                                                         <button
                                                             key={action.value}

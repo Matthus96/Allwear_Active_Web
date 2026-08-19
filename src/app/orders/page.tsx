@@ -60,6 +60,15 @@ type ParsedOrderItem = {
     };
 };
 
+type FulfilmentMethod = "delivery" | "collection";
+
+type CollectionDetails = {
+    name?: string;
+    addressLine1?: string;
+    suburb?: string;
+    city?: string;
+};
+
 type ParsedGatewayResponse = {
     provider?: string;
     reference?: string;
@@ -67,7 +76,9 @@ type ParsedGatewayResponse = {
     amount?: number;
     currency?: string;
     subtotal?: number;
+    fulfilmentMethod?: FulfilmentMethod;
     deliveryFee?: number;
+    collectionDetails?: CollectionDetails | null;
     deliveryDetails?: {
         fullName?: string;
         email?: string;
@@ -82,7 +93,7 @@ type ParsedGatewayResponse = {
     } | null;
 };
 
-const trackingSteps = [
+const getTrackingSteps = (fulfilmentMethod: FulfilmentMethod) => [
     {
         key: "order_placed",
         label: "Order placed",
@@ -100,18 +111,41 @@ const trackingSteps = [
     },
     {
         key: "out_for_delivery",
-        label: "Out for delivery",
+        label:
+            fulfilmentMethod === "collection"
+                ? "Ready for collection"
+                : "Out for delivery",
         dateField: "outForDeliveryAt",
     },
     {
         key: "delivered",
-        label: "Delivered",
+        label:
+            fulfilmentMethod === "collection"
+                ? "Collected"
+                : "Delivered",
         dateField: "deliveredAt",
     },
 ];
 
-const formatStatus = (status?: string) => {
+const formatStatus = (
+    status?: string,
+    fulfilmentMethod: FulfilmentMethod = "delivery"
+) => {
     if (!status) return "Order placed";
+
+    if (
+        fulfilmentMethod === "collection" &&
+        status === "out_for_delivery"
+    ) {
+        return "Ready for collection";
+    }
+
+    if (
+        fulfilmentMethod === "collection" &&
+        status === "delivered"
+    ) {
+        return "Collected";
+    }
 
     return status
         .replaceAll("_", " ")
@@ -165,8 +199,11 @@ const getTrackingStatus = (order: OrderDoc) => {
     return order.trackingStatus;
 };
 
-const getTrackingIndex = (trackingStatus?: string) => {
-    const index = trackingSteps.findIndex(
+const getTrackingIndex = (
+    trackingStatus: string | undefined,
+    steps: ReturnType<typeof getTrackingSteps>
+) => {
+    const index = steps.findIndex(
         (step) => step.key === trackingStatus
     );
 
@@ -427,11 +464,17 @@ export default function OrdersPage() {
                                 order.gateway_response
                             );
                             const deliveryDetails = gateway?.deliveryDetails;
+                            const fulfilmentMethod: FulfilmentMethod =
+                                gateway?.fulfilmentMethod === "collection"
+                                    ? "collection"
+                                    : "delivery";
+                            const collectionDetails = gateway?.collectionDetails;
+                            const steps = getTrackingSteps(fulfilmentMethod);
                             const orderDate = order.paidAt || order.$createdAt;
                             const paymentFailed = isPaymentFailed(order);
                             const trackingStatus = getTrackingStatus(order);
                             const currentIndex =
-                                getTrackingIndex(trackingStatus);
+                                getTrackingIndex(trackingStatus, steps);
 
                             return (
                                 <article
@@ -479,7 +522,8 @@ export default function OrdersPage() {
                                                 {!paymentFailed ? (
                                                     <span className="rounded-full bg-white px-4 py-2 text-xs font-black uppercase text-zinc-700 ring-1 ring-zinc-100">
                                                         {formatStatus(
-                                                            trackingStatus
+                                                            trackingStatus,
+                                                            fulfilmentMethod
                                                         )}
                                                     </span>
                                                 ) : null}
@@ -580,7 +624,32 @@ export default function OrdersPage() {
                                                 )}
                                             </div>
 
-                                            {deliveryDetails ? (
+                                            {fulfilmentMethod === "collection" ? (
+                                                <div className="mt-6 rounded-[2rem] bg-zinc-50 p-5 ring-1 ring-zinc-100">
+                                                    <p className="text-sm font-black uppercase tracking-[0.2em] text-[#6FC276]">
+                                                        Collection Point
+                                                    </p>
+
+                                                    <h4 className="mt-2 text-xl font-black text-zinc-950">
+                                                        {collectionDetails?.name ||
+                                                            "Allwear Factory Shop"}
+                                                    </h4>
+
+                                                    <div className="mt-3 space-y-1 text-sm leading-6 text-zinc-600">
+                                                        <p>
+                                                            {collectionDetails?.addressLine1 ||
+                                                                "55 Albert Wessels Drive"}
+                                                        </p>
+                                                        <p>
+                                                            {collectionDetails?.suburb ||
+                                                                "Riverside Industrial"}
+                                                            ,{" "}
+                                                            {collectionDetails?.city ||
+                                                                "Newcastle"}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            ) : deliveryDetails ? (
                                                 <div className="mt-6 rounded-[2rem] bg-zinc-50 p-5 ring-1 ring-zinc-100">
                                                     <p className="text-sm font-black uppercase tracking-[0.2em] text-[#6FC276]">
                                                         Delivery Details
@@ -669,7 +738,10 @@ export default function OrdersPage() {
                                                 <p className="mt-2 text-sm font-bold text-zinc-600">
                                                     {paymentFailed
                                                         ? "This payment did not complete successfully."
-                                                        : "We will update this order as it moves through fulfilment."}
+                                                        : fulfilmentMethod ===
+                                                          "collection"
+                                                        ? "We will update this order until it is ready for collection and collected."
+                                                        : "We will update this order as it moves through delivery."}
                                                 </p>
                                             </div>
 
@@ -686,7 +758,7 @@ export default function OrdersPage() {
                                                         </p>
                                                     </div>
                                                 ) : (
-                                                    trackingSteps.map(
+                                                    steps.map(
                                                         (step, index) => {
                                                             const completed =
                                                                 index <=
@@ -712,7 +784,7 @@ export default function OrdersPage() {
                                                                         </div>
 
                                                                         {index !==
-                                                                        trackingSteps.length -
+                                                                        steps.length -
                                                                             1 ? (
                                                                             <div
                                                                                 className={`mt-2 h-8 w-1 rounded-full ${
