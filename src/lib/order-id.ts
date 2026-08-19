@@ -1,18 +1,42 @@
-const hash32 = (value: string, seed: number) => {
-    let hash = (0x811c9dc5 ^ seed) >>> 0;
+const toHex = (value: number) =>
+    (value >>> 0).toString(16).padStart(8, "0");
+
+/**
+ * Produces a stable 128-bit-style hexadecimal fingerprint using only
+ * ES2015-compatible 32-bit integer operations. This intentionally avoids
+ * BigInt because the Allwear web app currently targets pre-ES2020 output.
+ */
+const hash128 = (value: string) => {
+    let h1 = 1779033703;
+    let h2 = 3144134277;
+    let h3 = 1013904242;
+    let h4 = 2773480762;
 
     for (let index = 0; index < value.length; index += 1) {
-        hash ^= value.charCodeAt(index);
-        hash = Math.imul(hash, 0x01000193) >>> 0;
+        const code = value.charCodeAt(index);
+
+        h1 = h2 ^ Math.imul(h1 ^ code, 597399067);
+        h2 = h3 ^ Math.imul(h2 ^ code, 2869860233);
+        h3 = h4 ^ Math.imul(h3 ^ code, 951274213);
+        h4 = h1 ^ Math.imul(h4 ^ code, 2716044179);
     }
 
-    return hash.toString(16).padStart(8, "0");
+    h1 = Math.imul(h3 ^ (h1 >>> 18), 597399067);
+    h2 = Math.imul(h4 ^ (h2 >>> 22), 2869860233);
+    h3 = Math.imul(h1 ^ (h3 >>> 17), 951274213);
+    h4 = Math.imul(h2 ^ (h4 >>> 19), 2716044179);
+
+    h1 ^= h2 ^ h3 ^ h4;
+    h2 ^= h1;
+    h3 ^= h1;
+    h4 ^= h1;
+
+    return `${toHex(h1)}${toHex(h2)}${toHex(h3)}${toHex(h4)}`;
 };
 
 /**
  * Stable Appwrite-safe document ID for a Paystack reference.
  * 4-char prefix + 32 hex chars = Appwrite's 36-char max.
- * Uses 32-bit integer hashing so it also compiles with the site's ES2017 target.
  */
 export const getOrderDocumentId = (reference: string) => {
     const cleanReference = String(reference || "").trim();
@@ -21,12 +45,5 @@ export const getOrderDocumentId = (reference: string) => {
         throw new Error("Missing order reference.");
     }
 
-    const parts = [
-        hash32(cleanReference, 0x00000000),
-        hash32(`${cleanReference.length}:${cleanReference}`, 0x9e3779b9),
-        hash32(`${cleanReference}:allwear`, 0x85ebca6b),
-        hash32(`paystack:${cleanReference}`, 0xc2b2ae35),
-    ];
-
-    return `ord_${parts.join("")}`;
+    return `ord_${hash128(cleanReference)}`;
 };

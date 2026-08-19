@@ -7,9 +7,10 @@ import {
 } from "@/lib/server/invoice-pdf";
 
 const DATABASE_ID = "6a056e4c0007e2f52631";
-const ORDERS_TABLE_ID = "orders";
+const ORDERS_COLLECTION_ID = "orders";
 const DEFAULT_DISTRIBUTOR_ID = "6a3502a1001eae91ffd9";
 const DEFAULT_DISTRIBUTOR_NAME = "Allwear HQ";
+const DEFAULT_DISTRIBUTOR_TEAM_ID = "6a3519de0031fcab27e3";
 
 const DEFAULT_BUSINESS_ADDRESS =
     "55 Albert Wessels Drive, Riverside Industrial, Newcastle, KwaZulu-Natal, South Africa";
@@ -84,10 +85,24 @@ const invoiceNumberFor = (reference: string, paidAt: unknown) => {
     return `AA-${safeDateCompact(paidAt)}-${digest}`;
 };
 
+const serverAppwriteKey = () => {
+    const value = String(
+        process.env.APPWRITE_API_KEY ||
+            process.env.APPWRITE_SERVER_API_KEY ||
+            ""
+    ).trim();
+
+    if (!value) {
+        throw new Error("Missing APPWRITE_API_KEY (or APPWRITE_SERVER_API_KEY).");
+    }
+
+    return value;
+};
+
 const appwriteHeaders = () => ({
     "Content-Type": "application/json",
     "X-Appwrite-Project": requiredEnv("NEXT_PUBLIC_APPWRITE_PROJECT_ID"),
-    "X-Appwrite-Key": requiredEnv("APPWRITE_API_KEY"),
+    "X-Appwrite-Key": serverAppwriteKey(),
 });
 
 const appwriteUrl = (path: string) =>
@@ -111,7 +126,7 @@ const readResponse = async (response: Response) => {
 const getOrderDocument = async (documentId: string) => {
     const response = await fetch(
         appwriteUrl(
-            `/tablesdb/${DATABASE_ID}/tables/${ORDERS_TABLE_ID}/rows/${encodeURIComponent(
+            `/databases/${DATABASE_ID}/collections/${ORDERS_COLLECTION_ID}/documents/${encodeURIComponent(
                 documentId
             )}`
         ),
@@ -155,12 +170,24 @@ const createOrderDocument = async ({
         throw new Error("Paid transaction has no customer email.");
     }
 
+    const permissions = accountId
+        ? [
+              `read(\"user:${accountId}\")`,
+              `update(\"user:${accountId}\")`,
+              `delete(\"user:${accountId}\")`,
+          ]
+        : [];
 
-    const isTestMode = String(transaction.reference || "").startsWith("TEST-");
+    const teamId = String(
+        process.env.NEXT_PUBLIC_DISTRIBUTOR_TEAM_ID || DEFAULT_DISTRIBUTOR_TEAM_ID
+    ).trim();
 
-    const appwriteTotal = isTestMode
-        ? 300
-        : numberValue(transaction.amount) / 100;
+    if (teamId) {
+        permissions.push(
+            `read(\"team:${teamId}\")`,
+            `update(\"team:${teamId}\")`
+        );
+    }
 
     const gatewayResponse = {
         provider: "paystack",
@@ -182,20 +209,20 @@ const createOrderDocument = async ({
 
     const response = await fetch(
         appwriteUrl(
-            `/tablesdb/${DATABASE_ID}/tables/${ORDERS_TABLE_ID}/rows`
+            `/databases/${DATABASE_ID}/collections/${ORDERS_COLLECTION_ID}/documents`
         ),
         {
             method: "POST",
             headers: appwriteHeaders(),
             body: JSON.stringify({
-                rowId: documentId,
+                documentId,
                 data: {
                     reference: transaction.reference,
                     email: customerEmail,
                     items: JSON.stringify(
                         Array.isArray(metadata.items) ? metadata.items : []
                     ),
-                    total: appwriteTotal,
+                    total: numberValue(transaction.amount) / 100,
                     accountId: accountId || null,
                     userId: userId || null,
                     status: "order_placed",
@@ -205,6 +232,7 @@ const createOrderDocument = async ({
                     distributorId: DEFAULT_DISTRIBUTOR_ID,
                     distributorName: DEFAULT_DISTRIBUTOR_NAME,
                 },
+                permissions,
             }),
         }
     );
@@ -225,7 +253,7 @@ const createOrderDocument = async ({
 const updateGatewayResponse = async (order: any, gatewayResponse: any) => {
     const response = await fetch(
         appwriteUrl(
-            `/tablesdb/${DATABASE_ID}/tables/${ORDERS_TABLE_ID}/rows/${encodeURIComponent(
+            `/databases/${DATABASE_ID}/collections/${ORDERS_COLLECTION_ID}/documents/${encodeURIComponent(
                 order.$id
             )}`
         ),
@@ -422,14 +450,6 @@ export const finalizePaidAllwearOrder = async (transaction: any) => {
 
     if (!customerEmail) throw new Error("No invoice email is available for this order.");
 
-    const internalRecipients = unique(
-        emailList(requiredEnv("INVOICE_INTERNAL_RECIPIENTS"))
-    );
-
-    if (internalRecipients.length === 0) {
-        throw new Error("INVOICE_INTERNAL_RECIPIENTS contains no valid email addresses.");
-    }
-
     const invoiceNumber = invoiceNumberFor(
         reference,
         transaction.paid_at || transaction.paidAt
@@ -447,6 +467,17 @@ export const finalizePaidAllwearOrder = async (transaction: any) => {
     }
 
     if (!order) throw new Error("Could not load the paid Allwear order.");
+
+    // The paid order is now safe in Appwrite. Invoice configuration and
+    // delivery happen only after persistence so a Resend/config failure can
+    // never cause the paid order itself to disappear.
+    const internalRecipients = unique(
+        emailList(requiredEnv("INVOICE_INTERNAL_RECIPIENTS"))
+    );
+
+    if (internalRecipients.length === 0) {
+        throw new Error("INVOICE_INTERNAL_RECIPIENTS contains no valid email addresses.");
+    }
 
     let gatewayResponse = {
         ...parseJsonObject(order.gateway_response),
