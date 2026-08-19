@@ -10,7 +10,6 @@ const DATABASE_ID = "6a056e4c0007e2f52631";
 const ORDERS_COLLECTION_ID = "orders";
 const DEFAULT_DISTRIBUTOR_ID = "6a3502a1001eae91ffd9";
 const DEFAULT_DISTRIBUTOR_NAME = "Allwear HQ";
-const DEFAULT_DISTRIBUTOR_TEAM_ID = "6a3519de0031fcab27e3";
 
 const DEFAULT_BUSINESS_ADDRESS =
     "55 Albert Wessels Drive, Riverside Industrial, Newcastle, KwaZulu-Natal, South Africa";
@@ -156,24 +155,6 @@ const createOrderDocument = async ({
         throw new Error("Paid transaction has no customer email.");
     }
 
-    const permissions = accountId
-        ? [
-              `read(\"user:${accountId}\")`,
-              `update(\"user:${accountId}\")`,
-              `delete(\"user:${accountId}\")`,
-          ]
-        : [];
-
-    const teamId = String(
-        process.env.NEXT_PUBLIC_DISTRIBUTOR_TEAM_ID || DEFAULT_DISTRIBUTOR_TEAM_ID
-    ).trim();
-
-    if (teamId) {
-        permissions.push(
-            `read(\"team:${teamId}\")`,
-            `update(\"team:${teamId}\")`
-        );
-    }
 
     const gatewayResponse = {
         provider: "paystack",
@@ -220,7 +201,6 @@ const createOrderDocument = async ({
                     couponCode: metadata.couponCode || null,
                     couponDiscount: numberValue(metadata.couponDiscount),
                 },
-                permissions,
             }),
         }
     );

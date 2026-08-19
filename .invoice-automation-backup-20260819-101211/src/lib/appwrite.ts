@@ -1,0 +1,1685 @@
+import {
+    Account,
+    Avatars,
+    Client,
+    Databases,
+    Functions,
+    ID,
+    ImageFormat,
+    ImageGravity,
+    Models,
+    Query,
+    Storage,
+    Teams,
+} from "appwrite";
+
+export type Category = Models.Document & {
+    name: string;
+};
+
+export type ProductSize = {
+    label: string;
+    size: string;
+    quantity: number;
+    available: boolean;
+    price?: number;
+};
+
+export type Product = Models.Document & {
+    name: string;
+    price: number;
+    image_url: string;
+    description?: string;
+    backImage?: string;
+    categories?: string | string[];
+    salePercentage?: number | string | null;
+
+    range?: string;
+    stock?: number;
+
+    sizes?: ProductSize[];
+
+    modelFrontImage?: string;
+    modelSideImage?: string;
+    modelBackImage?: string;
+    modelCloseupImage?: string;
+
+    isNewDrop?: boolean;
+    isLimitedEdition?: boolean | string;
+    limitedEditionUnits?: number | string;
+};
+
+export type ProductInventory = Models.Document & {
+    productId?: string;
+    productName?: string;
+    range?: string;
+    size: string;
+    quantity: number;
+    available?: boolean;
+    price?: string | number | null;
+};
+
+export type Coupon = Models.Document & {
+    code: string;
+    type: "percentage" | "fixed";
+    value: number;
+    active: boolean;
+    expiresAt?: string;
+    minimumSpend?: number;
+    usageLimit?: number;
+    usedCount?: number;
+    newUsersOnly?: boolean;
+};
+
+export type CouponCartItem = {
+    productId: string;
+    quantity: number;
+};
+
+export type VerifyCouponResult = {
+    valid: boolean;
+    message: string;
+    coupon?: Coupon;
+    discount: number;
+};
+
+export const appwriteConfig = {
+    endpoint: process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!,
+    projectId: process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!,
+
+    databaseId: "6a056e4c0007e2f52631",
+    bucketId: "6a06b4ff0024a8e44558",
+
+    userCollectionId: "user",
+    categoriesCollectionId: "categories",
+    menuCollectionId: "menu",
+    customizationsCollectionId: "customizations",
+    menuCustomizationsCollectionId: "menu_customizations",
+    ordersCollectionId: "orders",
+    addressesCollectionId: "addresses",
+    productInventoryCollectionId: "product-inventory",
+    couponsCollectionId: "coupons",
+
+    distributorCollectionId: "distributor",
+
+    distributorTeamId:
+        process.env.NEXT_PUBLIC_DISTRIBUTOR_TEAM_ID ||
+        "6a3519de0031fcab27e3",
+
+    defaultDistributorId: "6a3502a1001eae91ffd9",
+    defaultDistributorName: "Allwear HQ",
+
+    deleteAccountFunctionId:
+        process.env.NEXT_PUBLIC_DELETE_ACCOUNT_FUNCTION_ID || "",
+};
+
+export const client = new Client()
+    .setEndpoint(appwriteConfig.endpoint)
+    .setProject(appwriteConfig.projectId);
+
+export const account = new Account(client);
+export const databases = new Databases(client);
+export const storage = new Storage(client);
+export const functions = new Functions(client);
+export const teams = new Teams(client);
+
+const avatars = new Avatars(client);
+
+export type ImageSize = "thumbnail" | "card" | "detail";
+
+const imagePresets: Record<
+    ImageSize,
+    {
+        width: number;
+        quality: number;
+    }
+> = {
+    thumbnail: {
+        width: 400,
+        quality: 68,
+    },
+
+    card: {
+        width: 900,
+        quality: 74,
+    },
+
+    detail: {
+        width: 1600,
+        quality: 80,
+    },
+};
+
+export const getImageUrl = (
+    fileId: string,
+    size: ImageSize = "card"
+) => {
+    const preset = imagePresets[size];
+
+    return String(
+        storage.getFilePreview(
+            appwriteConfig.bucketId,
+            fileId,
+            preset.width,
+            0,
+            ImageGravity.Center,
+            preset.quality,
+            0,
+            "",
+            0,
+            1,
+            0,
+            "",
+            ImageFormat.Webp
+        )
+    );
+};
+
+export const getOriginalImageUrl = (fileId: string) => {
+    return String(
+        storage.getFileView(
+            appwriteConfig.bucketId,
+            fileId
+        )
+    );
+};
+
+const normalizeEmail = (email: string) => {
+    return email.trim().toLowerCase();
+};
+
+const getInitialsAvatar = (name?: string) => {
+    const safeName = name?.trim() || "User";
+
+    return String(
+        avatars.getInitials(safeName)
+    );
+};
+
+const isInventoryAvailable = (
+    item: ProductInventory
+) => {
+    const quantity = Number(
+        item.quantity || 0
+    );
+
+    const availableValue =
+        item.available;
+
+    const explicitlyUnavailable =
+        availableValue === false ||
+        String(availableValue).toLowerCase() === "false" ||
+        String(availableValue).toLowerCase() === "no" ||
+        String(availableValue).toLowerCase() === "0";
+
+    return (
+        quantity > 0 &&
+        !explicitlyUnavailable
+    );
+};
+
+/**
+ * If verifyCoupon is called from the cart without explicitly
+ * passing items, read the persisted Zustand cart.
+ *
+ * This allows the existing cart page to enforce the sale-item
+ * restriction without needing another code change.
+ */
+const getStoredCouponCartItems =
+    (): CouponCartItem[] => {
+        if (
+            typeof window ===
+            "undefined"
+        ) {
+            return [];
+        }
+
+        try {
+            const raw =
+                window.localStorage.getItem(
+                    "cart-storage"
+                );
+
+            if (!raw) {
+                return [];
+            }
+
+            const parsed =
+                JSON.parse(raw);
+
+            const storedItems =
+                parsed?.state?.items;
+
+            if (
+                !Array.isArray(
+                    storedItems
+                )
+            ) {
+                return [];
+            }
+
+            return storedItems
+                .map((item: any) => ({
+                    productId: String(
+                        item?.productId ||
+                            ""
+                    ).trim(),
+
+                    quantity: Number(
+                        item?.quantity ||
+                            0
+                    ),
+                }))
+                .filter(
+                    (
+                        item: CouponCartItem
+                    ) =>
+                        Boolean(
+                            item.productId
+                        ) &&
+                        item.quantity >
+                            0
+                );
+        } catch (error) {
+            console.log(
+                "READ STORED CART ERROR:",
+                error
+            );
+
+            return [];
+        }
+    };
+
+const resolveCouponCartItems = (
+    items?: CouponCartItem[]
+): CouponCartItem[] => {
+    if (
+        Array.isArray(items) &&
+        items.length > 0
+    ) {
+        return items
+            .map((item) => ({
+                productId: String(
+                    item.productId ||
+                        ""
+                ).trim(),
+
+                quantity: Number(
+                    item.quantity ||
+                        0
+                ),
+            }))
+            .filter(
+                (item) =>
+                    Boolean(
+                        item.productId
+                    ) &&
+                    item.quantity >
+                        0
+            );
+    }
+
+    return getStoredCouponCartItems();
+};
+
+const attachInventoryToProduct =
+    async (
+        product: Product
+    ): Promise<Product> => {
+        try {
+            const inventory =
+                await getProductInventory(
+                    product.$id,
+                    product.range
+                );
+
+            const sizes = inventory
+                .filter((item) =>
+                    isInventoryAvailable(
+                        item
+                    )
+                )
+                .map((item) => {
+                    const parsedPrice =
+                        item.price ===
+                            null ||
+                        item.price ===
+                            undefined ||
+                        item.price ===
+                            ""
+                            ? undefined
+                            : Number(
+                                  item.price
+                              );
+
+                    return {
+                        label:
+                            item.size,
+
+                        size:
+                            item.size,
+
+                        quantity:
+                            Number(
+                                item.quantity ||
+                                    0
+                            ),
+
+                        available:
+                            true,
+
+                        price:
+                            Number.isFinite(
+                                parsedPrice
+                            )
+                                ? parsedPrice
+                                : undefined,
+                    };
+                })
+                .sort((a, b) =>
+                    a.size.localeCompare(
+                        b.size,
+                        undefined,
+                        {
+                            numeric:
+                                true,
+                        }
+                    )
+                );
+
+            return {
+                ...product,
+                sizes,
+            };
+        } catch (error) {
+            console.log(
+                "ATTACH INVENTORY ERROR:",
+                error
+            );
+
+            return {
+                ...product,
+                sizes: [],
+            };
+        }
+    };
+
+export const getMenuById =
+    async ({
+        id,
+    }: {
+        id: string;
+    }): Promise<Product> => {
+        try {
+            const res =
+                await databases.getDocument(
+                    appwriteConfig.databaseId,
+                    appwriteConfig.menuCollectionId,
+                    id
+                );
+
+            const product =
+                res as unknown as Product;
+
+            return await attachInventoryToProduct(
+                product
+            );
+        } catch (e: any) {
+            console.log(
+                "GET MENU BY ID ERROR:",
+                e
+            );
+
+            throw new Error(
+                e?.message ||
+                    "Could not fetch menu item."
+            );
+        }
+    };
+
+export const getMenu =
+    async ({
+        category,
+        query,
+    }: {
+        category?: string;
+        query?: string;
+    }): Promise<Product[]> => {
+        try {
+            const queries: string[] =
+                [];
+
+            if (category) {
+                queries.push(
+                    Query.equal(
+                        "categories",
+                        category
+                    )
+                );
+            }
+
+            if (query) {
+                queries.push(
+                    Query.search(
+                        "name",
+                        query
+                    )
+                );
+            }
+
+            const res =
+                await databases.listDocuments(
+                    appwriteConfig.databaseId,
+                    appwriteConfig.menuCollectionId,
+                    queries
+                );
+
+            const products =
+                res.documents as unknown as Product[];
+
+            const productsWithInventory =
+                await Promise.all(
+                    products.map(
+                        (product) =>
+                            attachInventoryToProduct(
+                                product
+                            )
+                    )
+                );
+
+            return productsWithInventory;
+        } catch (e: any) {
+            console.log(
+                "GET MENU ERROR:",
+                e
+            );
+
+            throw new Error(
+                e?.message ||
+                    "Could not fetch products."
+            );
+        }
+    };
+
+export const getCategories =
+    async (): Promise<
+        Category[]
+    > => {
+        try {
+            const res =
+                await databases.listDocuments(
+                    appwriteConfig.databaseId,
+                    appwriteConfig.categoriesCollectionId
+                );
+
+            return res.documents as unknown as Category[];
+        } catch (e: any) {
+            console.log(
+                "GET CATEGORIES ERROR:",
+                e
+            );
+
+            throw new Error(
+                e?.message ||
+                    "Could not fetch categories."
+            );
+        }
+    };
+
+export const getProductInventory =
+    async (
+        productId: string,
+        range?: string
+    ): Promise<
+        ProductInventory[]
+    > => {
+        const cleanProductId =
+            String(
+                productId || ""
+            ).trim();
+
+        const cleanRange =
+            String(
+                range || ""
+            ).trim();
+
+        try {
+            if (cleanRange) {
+                const byRange =
+                    await databases.listDocuments(
+                        appwriteConfig.databaseId,
+                        appwriteConfig.productInventoryCollectionId,
+                        [
+                            Query.equal(
+                                "range",
+                                cleanRange
+                            ),
+                        ]
+                    );
+
+                if (
+                    byRange.documents
+                        .length > 0
+                ) {
+                    return byRange.documents as unknown as ProductInventory[];
+                }
+            }
+
+            if (cleanProductId) {
+                try {
+                    const byProductId =
+                        await databases.listDocuments(
+                            appwriteConfig.databaseId,
+                            appwriteConfig.productInventoryCollectionId,
+                            [
+                                Query.equal(
+                                    "productId",
+                                    cleanProductId
+                                ),
+                            ]
+                        );
+
+                    return byProductId.documents as unknown as ProductInventory[];
+                } catch (
+                    legacyError
+                ) {
+                    console.log(
+                        "LEGACY PRODUCT INVENTORY LOOKUP SKIPPED:",
+                        legacyError
+                    );
+                }
+            }
+
+            return [];
+        } catch (e: any) {
+            console.log(
+                "GET PRODUCT INVENTORY ERROR:",
+                e
+            );
+
+            throw new Error(
+                e?.message ||
+                    "Could not fetch product inventory."
+            );
+        }
+    };
+
+/**
+ * Coupon rules:
+ *
+ * 1. Only one coupon code is evaluated at a time.
+ * 2. Coupons cannot be used if ANY item in the cart is currently on sale.
+ * 3. Sale status is checked against Appwrite's live menu document.
+ * 4. QR coupons and manually entered coupons use exactly the same rules.
+ */
+export const verifyCoupon =
+    async ({
+        code,
+        subtotal,
+        items,
+        accountId,
+        userId,
+        email,
+    }: {
+        code: string;
+        subtotal: number;
+        items?: CouponCartItem[];
+        accountId?: string;
+        userId?: string;
+        email?: string;
+    }): Promise<VerifyCouponResult> => {
+        try {
+            const cleanCode =
+                String(
+                    code || ""
+                )
+                    .trim()
+                    .toUpperCase();
+
+            if (!cleanCode) {
+                return {
+                    valid: false,
+                    message:
+                        "Enter a coupon code.",
+                    discount: 0,
+                };
+            }
+
+            const safeSubtotal =
+                Number(
+                    subtotal || 0
+                );
+
+            if (
+                !Number.isFinite(
+                    safeSubtotal
+                ) ||
+                safeSubtotal <= 0
+            ) {
+                return {
+                    valid: false,
+                    message:
+                        "Your cart subtotal is invalid.",
+                    discount: 0,
+                };
+            }
+
+            /*
+             * Load the coupon first.
+             */
+            const res =
+                await databases.listDocuments(
+                    appwriteConfig.databaseId,
+                    appwriteConfig.couponsCollectionId,
+                    [
+                        Query.equal(
+                            "code",
+                            cleanCode
+                        ),
+                    ]
+                );
+
+            const coupon =
+                res.documents[0] as unknown as
+                    | Coupon
+                    | undefined;
+
+            if (!coupon) {
+                return {
+                    valid: false,
+                    message:
+                        "Coupon code not found.",
+                    discount: 0,
+                };
+            }
+
+            if (!coupon.active) {
+                return {
+                    valid: false,
+                    message:
+                        "This coupon is no longer active.",
+                    discount: 0,
+                };
+            }
+
+            /*
+             * Expiry check.
+             */
+            if (
+                coupon.expiresAt
+            ) {
+                const expiryTime =
+                    new Date(
+                        coupon.expiresAt
+                    ).getTime();
+
+                if (
+                    Number.isFinite(
+                        expiryTime
+                    ) &&
+                    expiryTime <
+                        Date.now()
+                ) {
+                    return {
+                        valid: false,
+                        message:
+                            "This coupon has expired.",
+                        discount: 0,
+                    };
+                }
+            }
+
+            /*
+             * Resolve the cart.
+             *
+             * Browser:
+             * - falls back to persisted Zustand cart if items weren't passed.
+             *
+             * Server:
+             * - Paystack route explicitly supplies items.
+             */
+            const cartItems =
+                resolveCouponCartItems(
+                    items
+                );
+
+            /*
+             * Reject the entire coupon if ANY product in the cart
+             * has salePercentage > 0.
+             */
+            if (
+                cartItems.length > 0
+            ) {
+                const uniqueProductIds =
+                    [
+                        ...new Set(
+                            cartItems.map(
+                                (
+                                    item
+                                ) =>
+                                    item.productId
+                            )
+                        ),
+                    ];
+
+                for (const productId of uniqueProductIds) {
+                    try {
+                        const productDocument =
+                            await databases.getDocument(
+                                appwriteConfig.databaseId,
+                                appwriteConfig.menuCollectionId,
+                                productId
+                            );
+
+                        const product =
+                            productDocument as unknown as Product;
+
+                        const salePercentage =
+                            Number(
+                                product.salePercentage ||
+                                    0
+                            );
+
+                        if (
+                            Number.isFinite(
+                                salePercentage
+                            ) &&
+                            salePercentage >
+                                0
+                        ) {
+                            return {
+                                valid: false,
+                                message:
+                                    "Coupons cannot be used when your cart contains sale items.",
+                                discount: 0,
+                            };
+                        }
+                    } catch (
+                        productError
+                    ) {
+                        console.log(
+                            "COUPON PRODUCT ELIGIBILITY ERROR:",
+                            productError
+                        );
+
+                        return {
+                            valid: false,
+                            message:
+                                "Could not verify product eligibility for this coupon.",
+                            discount: 0,
+                        };
+                    }
+                }
+            }
+
+            /*
+             * Minimum spend.
+             */
+            const minimumSpend =
+                Number(
+                    coupon.minimumSpend ||
+                        0
+                );
+
+            if (
+                minimumSpend >
+                    0 &&
+                safeSubtotal <
+                    minimumSpend
+            ) {
+                return {
+                    valid: false,
+                    message: `Spend at least R${minimumSpend.toFixed(
+                        2
+                    )} to use this coupon.`,
+                    discount: 0,
+                };
+            }
+
+            /*
+             * Usage limit.
+             */
+            const usageLimit =
+                Number(
+                    coupon.usageLimit ||
+                        0
+                );
+
+            const usedCount =
+                Number(
+                    coupon.usedCount ||
+                        0
+                );
+
+            if (
+                usageLimit > 0 &&
+                usedCount >=
+                    usageLimit
+            ) {
+                return {
+                    valid: false,
+                    message:
+                        "This coupon has reached its usage limit.",
+                    discount: 0,
+                };
+            }
+
+            /*
+             * New users only.
+             */
+            if (
+                coupon.newUsersOnly
+            ) {
+                if (
+                    !accountId &&
+                    !userId &&
+                    !email
+                ) {
+                    return {
+                        valid: false,
+                        message:
+                            "Please log in to use this coupon.",
+                        discount: 0,
+                    };
+                }
+
+                const previousOrders =
+                    await getUserOrders(
+                        {
+                            accountId,
+                            userId,
+                            email,
+                        }
+                    );
+
+                if (
+                    previousOrders.length >
+                    0
+                ) {
+                    return {
+                        valid: false,
+                        message:
+                            "This coupon is only available to new customers.",
+                        discount: 0,
+                    };
+                }
+            }
+
+            /*
+             * Discount calculation.
+             */
+            const couponType =
+                String(
+                    coupon.type ||
+                        ""
+                )
+                    .trim()
+                    .toLowerCase();
+
+            const couponValue =
+                Number(
+                    coupon.value ||
+                        0
+                );
+
+            if (
+                !Number.isFinite(
+                    couponValue
+                ) ||
+                couponValue <= 0
+            ) {
+                return {
+                    valid: false,
+                    message:
+                        "This coupon has no discount value.",
+                    discount: 0,
+                };
+            }
+
+            let discount = 0;
+
+            if (
+                couponType ===
+                "percentage"
+            ) {
+                discount =
+                    safeSubtotal *
+                    (couponValue /
+                        100);
+            } else if (
+                couponType ===
+                "fixed"
+            ) {
+                discount =
+                    couponValue;
+            } else {
+                return {
+                    valid: false,
+                    message:
+                        "Coupon type is invalid. Use fixed or percentage.",
+                    discount: 0,
+                };
+            }
+
+            discount =
+                Math.min(
+                    discount,
+                    safeSubtotal
+                );
+
+            /*
+             * Normalise money to 2 decimals.
+             */
+            discount =
+                Math.round(
+                    discount * 100
+                ) / 100;
+
+            if (
+                discount <= 0
+            ) {
+                return {
+                    valid: false,
+                    message:
+                        "This coupon has no discount value.",
+                    discount: 0,
+                };
+            }
+
+            return {
+                valid: true,
+                message:
+                    "Coupon applied successfully.",
+                coupon,
+                discount,
+            };
+        } catch (e: any) {
+            console.log(
+                "VERIFY COUPON ERROR:",
+                e
+            );
+
+            return {
+                valid: false,
+                message:
+                    e?.message ||
+                    "Could not verify coupon.",
+                discount: 0,
+            };
+        }
+    };
+
+export const signIn =
+    async ({
+        email,
+        password,
+    }: {
+        email: string;
+        password: string;
+    }) => {
+        try {
+            return await account.createEmailPasswordSession(
+                normalizeEmail(
+                    email
+                ),
+                password
+            );
+        } catch (e: any) {
+            console.log(
+                "SIGN IN ERROR:",
+                e
+            );
+
+            throw new Error(
+                e?.message ||
+                    "Could not sign in."
+            );
+        }
+    };
+
+export const signUp =
+    async ({
+        email,
+        password,
+        name,
+    }: {
+        email: string;
+        password: string;
+        name: string;
+    }) => {
+        try {
+            const cleanEmail =
+                normalizeEmail(
+                    email
+                );
+
+            const cleanName =
+                name.trim();
+
+            const newAccount =
+                await account.create(
+                    ID.unique(),
+                    cleanEmail,
+                    password,
+                    cleanName
+                );
+
+            await account.createEmailPasswordSession(
+                cleanEmail,
+                password
+            );
+
+            const existingProfile =
+                await databases.listDocuments(
+                    appwriteConfig.databaseId,
+                    appwriteConfig.userCollectionId,
+                    [
+                        Query.equal(
+                            "accountId",
+                            newAccount.$id
+                        ),
+                    ]
+                );
+
+            if (
+                existingProfile
+                    .documents
+                    .length > 0
+            ) {
+                return existingProfile
+                    .documents[0];
+            }
+
+            return await databases.createDocument(
+                appwriteConfig.databaseId,
+                appwriteConfig.userCollectionId,
+                ID.unique(),
+                {
+                    accountId:
+                        newAccount.$id,
+
+                    email:
+                        cleanEmail,
+
+                    name:
+                        cleanName,
+
+                    avatar:
+                        getInitialsAvatar(
+                            cleanName
+                        ),
+
+                    deleted:
+                        false,
+                }
+            );
+        } catch (e: any) {
+            console.log(
+                "SIGN UP ERROR:",
+                e
+            );
+
+            throw new Error(
+                e?.message ||
+                    "Could not create account."
+            );
+        }
+    };
+
+export const getCurrentUser =
+    async () => {
+        try {
+            const currentAccount =
+                await account.get();
+
+            if (
+                !currentAccount?.$id
+            ) {
+                return null;
+            }
+
+            const res =
+                await databases.listDocuments(
+                    appwriteConfig.databaseId,
+                    appwriteConfig.userCollectionId,
+                    [
+                        Query.equal(
+                            "accountId",
+                            currentAccount.$id
+                        ),
+                    ]
+                );
+
+            if (
+                !res.documents
+                    .length
+            ) {
+                return await databases.createDocument(
+                    appwriteConfig.databaseId,
+                    appwriteConfig.userCollectionId,
+                    ID.unique(),
+                    {
+                        accountId:
+                            currentAccount.$id,
+
+                        email:
+                            normalizeEmail(
+                                currentAccount.email
+                            ),
+
+                        name:
+                            currentAccount.name ||
+                            "User",
+
+                        avatar:
+                            getInitialsAvatar(
+                                currentAccount.name
+                            ),
+
+                        deleted:
+                            false,
+                    }
+                );
+            }
+
+            const user =
+                res.documents[0];
+
+            if (
+                user.deleted ===
+                true
+            ) {
+                await logout();
+                return null;
+            }
+
+            return user;
+        } catch {
+            return null;
+        }
+    };
+
+export const getUserAddresses =
+    async () => {
+        try {
+            const currentAccount =
+                await account.get();
+
+            const res =
+                await databases.listDocuments(
+                    appwriteConfig.databaseId,
+                    appwriteConfig.addressesCollectionId,
+                    [
+                        Query.equal(
+                            "userId",
+                            currentAccount.$id
+                        ),
+
+                        Query.orderDesc(
+                            "$createdAt"
+                        ),
+                    ]
+                );
+
+            return res.documents;
+        } catch (e: any) {
+            console.log(
+                "GET ADDRESSES ERROR:",
+                e
+            );
+
+            throw new Error(
+                e?.message ||
+                    "Could not fetch addresses."
+            );
+        }
+    };
+
+export const createAddress =
+    async ({
+        label,
+        address,
+    }: {
+        label: string;
+        address: string;
+    }) => {
+        try {
+            const currentAccount =
+                await account.get();
+
+            return await databases.createDocument(
+                appwriteConfig.databaseId,
+                appwriteConfig.addressesCollectionId,
+                ID.unique(),
+                {
+                    userId:
+                        currentAccount.$id,
+
+                    label:
+                        label.trim(),
+
+                    address:
+                        address.trim(),
+                }
+            );
+        } catch (e: any) {
+            console.log(
+                "CREATE ADDRESS ERROR:",
+                e
+            );
+
+            throw new Error(
+                e?.message ||
+                    "Could not save address."
+            );
+        }
+    };
+
+export const logout =
+    async () => {
+        try {
+            await account.deleteSession(
+                "current"
+            );
+        } catch (e) {
+            console.log(
+                "LOGOUT ERROR:",
+                e
+            );
+        }
+    };
+
+export type OrderTrackingStatus =
+    | "order_placed"
+    | "confirmed"
+    | "preparing"
+    | "out_for_delivery"
+    | "delivered"
+    | "cancelled"
+    | "payment_failed";
+
+export type CreateOrderParams = {
+    reference: string;
+    email: string;
+    items: string;
+    total: number;
+
+    accountId?: string;
+    userId?: string;
+
+    status?: string;
+    trackingStatus?: string;
+
+    paidAt?: string;
+    gateway_response?: string;
+
+    distributorId?: string;
+    distributorName?: string;
+
+    couponCode?:
+        | string
+        | null;
+
+    couponDiscount?: number;
+};
+
+export const createOrder =
+    async (
+        order: CreateOrderParams
+    ) => {
+        try {
+            return await databases.createDocument(
+                appwriteConfig.databaseId,
+                appwriteConfig.ordersCollectionId,
+                ID.unique(),
+                {
+                    reference:
+                        order.reference,
+
+                    email:
+                        order.email,
+
+                    items:
+                        order.items,
+
+                    total:
+                        order.total,
+
+                    accountId:
+                        order.accountId ??
+                        null,
+
+                    userId:
+                        order.userId ??
+                        null,
+
+                    status:
+                        order.status ??
+                        "order_placed",
+
+                    trackingStatus:
+                        order.trackingStatus ??
+                        "order_placed",
+
+                    paidAt:
+                        order.paidAt ??
+                        new Date().toISOString(),
+
+                    gateway_response:
+                        order.gateway_response ??
+                        null,
+
+                    distributorId:
+                        order.distributorId ??
+                        appwriteConfig.defaultDistributorId,
+
+                    distributorName:
+                        order.distributorName ??
+                        appwriteConfig.defaultDistributorName,
+
+                    couponCode:
+                        order.couponCode ??
+                        null,
+
+                    couponDiscount:
+                        order.couponDiscount ??
+                        0,
+                }
+            );
+        } catch (e: any) {
+            console.log(
+                "CREATE ORDER ERROR:",
+                e
+            );
+
+            throw new Error(
+                e?.message ||
+                    "Could not create order."
+            );
+        }
+    };
+
+export const getUserOrders =
+    async ({
+        accountId,
+        userId,
+        email,
+    }: {
+        accountId?: string;
+        userId?: string;
+        email?: string;
+    }) => {
+        try {
+            const results: any[] =
+                [];
+
+            const addUnique = (
+                docs: any[]
+            ) => {
+                docs.forEach(
+                    (doc) => {
+                        const exists =
+                            results.some(
+                                (
+                                    item
+                                ) =>
+                                    item.$id ===
+                                    doc.$id
+                            );
+
+                        if (!exists) {
+                            results.push(
+                                doc
+                            );
+                        }
+                    }
+                );
+            };
+
+            if (accountId) {
+                const byAccountId =
+                    await databases.listDocuments(
+                        appwriteConfig.databaseId,
+                        appwriteConfig.ordersCollectionId,
+                        [
+                            Query.equal(
+                                "accountId",
+                                accountId
+                            ),
+
+                            Query.orderDesc(
+                                "$createdAt"
+                            ),
+                        ]
+                    );
+
+                addUnique(
+                    byAccountId.documents
+                );
+            }
+
+            if (accountId) {
+                const byUserIdUsingAccountId =
+                    await databases.listDocuments(
+                        appwriteConfig.databaseId,
+                        appwriteConfig.ordersCollectionId,
+                        [
+                            Query.equal(
+                                "userId",
+                                accountId
+                            ),
+
+                            Query.orderDesc(
+                                "$createdAt"
+                            ),
+                        ]
+                    );
+
+                addUnique(
+                    byUserIdUsingAccountId.documents
+                );
+            }
+
+            if (
+                userId &&
+                userId !==
+                    accountId
+            ) {
+                const byUserId =
+                    await databases.listDocuments(
+                        appwriteConfig.databaseId,
+                        appwriteConfig.ordersCollectionId,
+                        [
+                            Query.equal(
+                                "userId",
+                                userId
+                            ),
+
+                            Query.orderDesc(
+                                "$createdAt"
+                            ),
+                        ]
+                    );
+
+                addUnique(
+                    byUserId.documents
+                );
+            }
+
+            if (email) {
+                const byEmail =
+                    await databases.listDocuments(
+                        appwriteConfig.databaseId,
+                        appwriteConfig.ordersCollectionId,
+                        [
+                            Query.equal(
+                                "email",
+                                email
+                            ),
+
+                            Query.orderDesc(
+                                "$createdAt"
+                            ),
+                        ]
+                    );
+
+                addUnique(
+                    byEmail.documents
+                );
+            }
+
+            return results.sort(
+                (a, b) => {
+                    const dateA =
+                        new Date(
+                            a.$createdAt ||
+                                a.paidAt ||
+                                0
+                        ).getTime();
+
+                    const dateB =
+                        new Date(
+                            b.$createdAt ||
+                                b.paidAt ||
+                                0
+                        ).getTime();
+
+                    return (
+                        dateB -
+                        dateA
+                    );
+                }
+            );
+        } catch (e: any) {
+            console.log(
+                "GET USER ORDERS ERROR:",
+                e
+            );
+
+            throw new Error(
+                e?.message ||
+                    "Could not fetch orders."
+            );
+        }
+    };
+
+export const getDistributorOrders =
+    async (
+        distributorId =
+            appwriteConfig.defaultDistributorId
+    ) => {
+        try {
+            const res =
+                await databases.listDocuments(
+                    appwriteConfig.databaseId,
+                    appwriteConfig.ordersCollectionId,
+                    [
+                        Query.equal(
+                            "distributorId",
+                            distributorId
+                        ),
+
+                        Query.orderDesc(
+                            "$createdAt"
+                        ),
+                    ]
+                );
+
+            return res.documents;
+        } catch (e: any) {
+            console.log(
+                "GET DISTRIBUTOR ORDERS ERROR:",
+                e
+            );
+
+            throw new Error(
+                e?.message ||
+                    "Could not fetch distributor orders."
+            );
+        }
+    };
+
+const getTrackingTimestampField =
+    (
+        trackingStatus: OrderTrackingStatus
+    ) => {
+        switch (
+            trackingStatus
+        ) {
+            case "confirmed":
+                return "confirmedAt";
+
+            case "preparing":
+                return "preparingAt";
+
+            case "out_for_delivery":
+                return "outForDeliveryAt";
+
+            case "delivered":
+                return "deliveredAt";
+
+            case "cancelled":
+                return "cancelledAt";
+
+            default:
+                return null;
+        }
+    };
+
+export const updateOrderTrackingStatus =
+    async ({
+        orderId,
+        trackingStatus,
+    }: {
+        orderId: string;
+        trackingStatus: OrderTrackingStatus;
+    }) => {
+        try {
+            const timestampField =
+                getTrackingTimestampField(
+                    trackingStatus
+                );
+
+            const payload: Record<
+                string,
+                any
+            > = {
+                trackingStatus,
+
+                status:
+                    trackingStatus ===
+                    "cancelled"
+                        ? "cancelled"
+                        : trackingStatus ===
+                          "payment_failed"
+                        ? "payment_failed"
+                        : "order_placed",
+            };
+
+            if (timestampField) {
+                payload[
+                    timestampField
+                ] =
+                    new Date().toISOString();
+            }
+
+            return await databases.updateDocument(
+                appwriteConfig.databaseId,
+                appwriteConfig.ordersCollectionId,
+                orderId,
+                payload
+            );
+        } catch (e: any) {
+            console.log(
+                "UPDATE ORDER TRACKING ERROR:",
+                e
+            );
+
+            throw new Error(
+                e?.message ||
+                    "Could not update order status."
+            );
+        }
+    };
+
+export { ID, Query };
