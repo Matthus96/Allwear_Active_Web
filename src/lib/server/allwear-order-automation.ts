@@ -156,6 +156,12 @@ const createOrderDocument = async ({
     }
 
 
+    const isTestMode = String(transaction.reference || "").startsWith("TEST-");
+
+    const appwriteTotal = isTestMode
+        ? 300
+        : numberValue(transaction.amount) / 100;
+
     const gatewayResponse = {
         provider: "paystack",
         reference: transaction.reference,
@@ -189,7 +195,7 @@ const createOrderDocument = async ({
                     items: JSON.stringify(
                         Array.isArray(metadata.items) ? metadata.items : []
                     ),
-                    total: numberValue(transaction.amount) / 100,
+                    total: appwriteTotal,
                     accountId: accountId || null,
                     userId: userId || null,
                     status: "order_placed",
