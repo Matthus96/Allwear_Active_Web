@@ -102,6 +102,10 @@ export const appwriteConfig = {
 
     distributorCollectionId: "distributor",
 
+    distributorTeamId:
+        process.env.NEXT_PUBLIC_DISTRIBUTOR_TEAM_ID ||
+        "6a3519de0031fcab27e3",
+
     defaultDistributorId: "6a3502a1001eae91ffd9",
     defaultDistributorName: "Allwear HQ",
 

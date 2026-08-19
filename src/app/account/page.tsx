@@ -9,6 +9,7 @@ import Footer from "@/components/Footer";
 
 import { useAuthStore } from "@/store/auth.store";
 import { useCartStore } from "@/store/cart.store";
+import useIsDistributor from "@/hooks/useIsDistributor";
 
 export default function AccountPage() {
     const router = useRouter();
@@ -18,6 +19,7 @@ export default function AccountPage() {
     const logout = useAuthStore((state) => state.logout);
 
     const totalItems = useCartStore((state) => state.getTotalItems());
+    const { isDistributor } = useIsDistributor();
 
     useEffect(() => {
         if (!hydrated) return;
@@ -49,10 +51,22 @@ const accountCards = [
         eyebrow: "Orders",
         title: "My Orders",
         description:
-            "View order history, payment status and delivery progress.",
+            "View order history, payment status and fulfilment progress.",
         href: "/orders",
         label: "Track Orders",
     },
+    ...(isDistributor
+        ? [
+              {
+                  eyebrow: "Distributor",
+                  title: "Distributor Orders",
+                  description:
+                      "Manage assigned orders and update delivery or collection progress.",
+                  href: "/distributor/orders",
+                  label: "Manage Orders",
+              },
+          ]
+        : []),
     {
         eyebrow: "Delivery",
         title: "Saved Addresses",
