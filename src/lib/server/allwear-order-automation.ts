@@ -198,8 +198,6 @@ const createOrderDocument = async ({
                     gateway_response: JSON.stringify(gatewayResponse),
                     distributorId: DEFAULT_DISTRIBUTOR_ID,
                     distributorName: DEFAULT_DISTRIBUTOR_NAME,
-                    couponCode: metadata.couponCode || null,
-                    couponDiscount: numberValue(metadata.couponDiscount),
                 },
             }),
         }
