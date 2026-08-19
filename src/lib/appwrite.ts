@@ -1,4 +1,4 @@
-import {
+﻿import {
     Account,
     Avatars,
     Client,
@@ -12,6 +12,8 @@ import {
     Storage,
     Teams,
 } from "appwrite";
+
+import { getOrderDocumentId } from "@/lib/order-id";
 
 export type Category = Models.Document & {
     name: string;
@@ -1327,11 +1329,16 @@ export const createOrder =
     async (
         order: CreateOrderParams
     ) => {
+        const documentId =
+            getOrderDocumentId(
+                order.reference
+            );
+
         try {
             return await databases.createDocument(
                 appwriteConfig.databaseId,
                 appwriteConfig.ordersCollectionId,
-                ID.unique(),
+                documentId,
                 {
                     reference:
                         order.reference,
@@ -1387,6 +1394,22 @@ export const createOrder =
                 }
             );
         } catch (e: any) {
+            const statusCode =
+                Number(
+                    e?.code ??
+                        e?.status ??
+                        e?.response?.code ??
+                        0
+                );
+
+            if (statusCode === 409) {
+                return await databases.getDocument(
+                    appwriteConfig.databaseId,
+                    appwriteConfig.ordersCollectionId,
+                    documentId
+                );
+            }
+
             console.log(
                 "CREATE ORDER ERROR:",
                 e
@@ -1398,7 +1421,6 @@ export const createOrder =
             );
         }
     };
-
 export const getUserOrders =
     async ({
         accountId,
